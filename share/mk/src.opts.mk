@@ -272,9 +272,10 @@ __LLVM_TARGETS= \
 		aarch64 \
 		arm \
 		powerpc \
+		loongarch \
 		riscv \
 		x86
-__LLVM_TARGET_FILT=	C/(amd64|i386)/x86/:C/powerpc.*/powerpc/:C/armv[67]/arm/:C/riscv.*/riscv/
+__LLVM_TARGET_FILT=    C/(amd64|i386)/x86/:C/powerpc.*/powerpc/:C/armv[67]/arm/:C/loongarch.*/loongarch/:C/riscv.*/riscv/
 .for __llt in ${__LLVM_TARGETS}
 # Default enable the given TARGET's LLVM_TARGET support
 .if ${__T:${__LLVM_TARGET_FILT}} == ${__llt}
@@ -308,6 +309,14 @@ __DEFAULT_NO_OPTIONS+=LLDB
 __DEFAULT_YES_OPTIONS+=LIB32
 .else
 BROKEN_OPTIONS+=LIB32
+.endif
+.if ${__T:Mloongarch*}
+# GOOGLETEST cannot currently be compiled on mips due to external circumstances.
+# Notably, the freebsd-gcc port isn't linking in libgcc so we end up trying ot
+# link to a hidden symbol. LLVM would successfully link this in, but some of
+# the mips variants are broken under LLVM until LLVM 10. GOOGLETEST should be
+# marked no longer broken with the switch to LLVM.
+BROKEN_OPTIONS+=GOOGLETEST PROFILE
 .endif
 # EFI doesn't exist on powerpc (well, officially) and doesn't work on i386
 .if ${__T:Mpowerpc*} || ${__T} == "i386"
