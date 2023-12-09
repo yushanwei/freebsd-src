@@ -379,6 +379,7 @@ SRCS+=		Plugins/Instruction/MIPS/EmulateInstructionMIPS.cpp
 SRCS+=		Plugins/Instruction/MIPS64/EmulateInstructionMIPS64.cpp
 SRCS+=		Plugins/Instruction/PPC64/EmulateInstructionPPC64.cpp
 SRCS+=		Plugins/Instruction/RISCV/EmulateInstructionRISCV.cpp
+SRCS+=          Plugins/Instruction/LoongArch/EmulateInstructionLoongArch.cpp
 SRCS+=		Plugins/InstrumentationRuntime/ASan/InstrumentationRuntimeASan.cpp
 SRCS+=		Plugins/InstrumentationRuntime/MainThreadChecker/InstrumentationRuntimeMainThreadChecker.cpp
 SRCS+=		Plugins/InstrumentationRuntime/TSan/InstrumentationRuntimeTSan.cpp
