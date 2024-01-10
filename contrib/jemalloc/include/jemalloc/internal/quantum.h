@@ -45,6 +45,9 @@
 #  ifdef __powerpc__
 #    define LG_QUANTUM		4
 #  endif
+#  if defined __loongarch__
+#    define LG_QUANTUM		4
+#  endif
 #  if defined(__riscv) || defined(__riscv__)
 #    define LG_QUANTUM		4
 #  endif
