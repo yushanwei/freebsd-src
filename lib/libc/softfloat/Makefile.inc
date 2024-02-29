@@ -12,7 +12,7 @@ CFLAGS+=	-DSOFTFLOAT_FOR_GCC
 SRCS+=		softfloat.c
 
 # Deprecated FPU control interface
-.if ${LIBC_ARCH} != "riscv"
+.if ${LIBC_ARCH} != "riscv" || ${LIBC_ARCH} != "loongarch"
 SRCS+=		fpgetround.c fpsetround.c fpgetmask.c fpsetmask.c \
 		fpgetsticky.c
 .endif
