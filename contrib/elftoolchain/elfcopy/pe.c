@@ -57,7 +57,7 @@ create_pe(struct elfcopy *ecp, int ifd, int ofd)
 	time_t timestamp;
 	int elferr;
 
-	if (ecp->otf == ETF_EFI || ecp->oem == EM_X86_64)
+	if (ecp->otf == ETF_EFI || ecp->oem == EM_X86_64 || ecp->oem == EM_LOONGARCH)
 		po = PE_O_PE32P;
 	else
 		po = PE_O_PE32;
@@ -85,6 +85,9 @@ create_pe(struct elfcopy *ecp, int ifd, int ofd)
 		break;
 	case EM_X86_64:
 		pch.ch_machine = IMAGE_FILE_MACHINE_AMD64;
+		break;
+	case EM_LOONGARCH:
+		pch.ch_machine = IMAGE_FILE_MACHINE_LOONGARCH64;
 		break;
 	default:
 		pch.ch_machine = IMAGE_FILE_MACHINE_UNKNOWN;
