@@ -290,7 +290,7 @@ libpe_write_coff_header(PE *pe, off_t off)
 	} else if (pe->pe_obj == PE_O_PE32P) {
 		if (!ch->ch_optsize)
 			ch->ch_optsize = PE_COFF_OPT_SIZE_32P;
-		ch->ch_char |= IMAGE_FILE_EXECUTABLE_IMAGE |
+		ch->ch_char |= IMAGE_FILE_DEBUG_STRIPPED |
 		    IMAGE_FILE_LARGE_ADDRESS_AWARE;
 	} else
 		ch->ch_optsize = 0;
