@@ -670,6 +670,12 @@ elftc_reloc_type_str(unsigned int mach, unsigned int type)
 		case 58: return "R_RISCV_IRELATIVE";
 		}
 		break;
+	case EM_LOONGARCH:
+		switch(type) {
+		case 0: return "R_LARCH_NONE";
+		case 1: return "R_LARCH_32";
+		}
+		break;
 	case EM_S390:
 		switch (type) {
 		case 0: return "R_390_NONE";
