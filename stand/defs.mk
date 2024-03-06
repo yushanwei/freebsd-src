@@ -147,6 +147,10 @@ CFLAGS+=	-mgeneral-regs-only -ffixed-x18 -fPIC
 CFLAGS+=	-march=rv64imac -mabi=lp64 -fPIC
 CFLAGS.clang+=	-mcmodel=medium
 CFLAGS.gcc+=	-mcmodel=medany
+.elif ${MACHINE_CPUARCH} == "loongarch"
+CFLAGS+=	-mabi=lp64s -fPIC
+CFLAGS.clang+=	-mcmodel=medium
+CFLAGS.gcc+=	-mcmodel=medany
 .else
 CFLAGS+=	-msoft-float
 .endif
