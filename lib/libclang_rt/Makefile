@@ -86,6 +86,7 @@ SUBDIR+=	${SD_XRAY}
 SUBDIR+=	${SD_ASAN}
 SUBDIR+=	${SD_STATS}
 SUBDIR+=	${SD_UBSAN}
+.elif ${MACHINE_CPUARCH} == "loongarch"
 .endif
 
 SUBDIR+=	${SD_INCLUDE}
