@@ -306,6 +306,7 @@ typedef struct {
 				   and MPRC of Peking University */
 #define	EM_AARCH64	183	/* AArch64 (64-bit ARM) */
 #define	EM_RISCV	243	/* RISC-V */
+#define EM_LOONGARCH    258     /* LOONGARCH */
 
 /* Non-standard or deprecated. */
 #define	EM_486		6	/* Intel i486. */
@@ -381,6 +382,14 @@ typedef struct {
 #define	EF_RISCV_FLOAT_ABI_QUAD	0x00000006
 #define	EF_RISCV_RVE		0x00000008
 #define	EF_RISCV_TSO		0x00000010
+
+#define EF_LOONGARCH_ABI_LP64_SOFT_FLOAT        0x1
+#define EF_LOONGARCH_ABI_LP64_SINGLE_FLOAT      0x2
+#define EF_LOONGARCH_ABI_LP64_DOUBLE_FLOAT      0x3
+
+#define EF_LOONGARCH_ABI_ILP32_SOFT_FLOAT       0x5
+#define EF_LOONGARCH_ABI_ILP32_SINGLE_FLOAT     0x6
+#define EF_LOONGARCH_ABI_ILP32_DOUBLE_FLOAT     0x7
 
 #define	EF_SPARC_EXT_MASK	0x00ffff00
 #define	EF_SPARC_32PLUS		0x00000100
@@ -827,6 +836,13 @@ typedef struct {
 #define	NT_ARM_VFP	0x400	/* ARM VFP registers */
 #define	NT_ARM_TLS	0x401	/* ARM TLS register */
 #define	NT_ARM_ADDR_MASK	0x406	/* arm64 address mask (e.g. for TBI) */
+#define NT_LOONGARCH_CPUCFG     0xa00   /* LoongArch CPU config registers */
+#define NT_LOONGARCH_CSR        0xa01   /* LoongArch control and status registers */
+#define NT_LOONGARCH_LSX        0xa02   /* LoongArch Loongson SIMD Extension registers */
+#define NT_LOONGARCH_LASX       0xa03   /* LoongArch Loongson Advanced SIMD Extension registers */
+#define NT_LOONGARCH_LBT        0xa04   /* LoongArch Loongson Binary Translation registers */
+#define NT_LOONGARCH_HW_BREAK   0xa05   /* LoongArch hardware breakpoint registers */
+#define NT_LOONGARCH_HW_WATCH   0xa06   /* LoongArch hardware watchpoint registers */
 
 /* GNU note types. */
 #define	NT_GNU_ABI_TAG		1
@@ -1498,6 +1514,106 @@ typedef struct {
 /* 39 and 40 were BND-related, already decomissioned */
 #define	R_X86_64_GOTPCRELX	41
 #define	R_X86_64_REX_GOTPCRELX	42
+
+/* LoongArch relocation types used by the dynamic linker */
+#define R_LARCH_NONE                            0
+#define R_LARCH_32                              1
+#define R_LARCH_64                              2
+#define R_LARCH_RELATIVE                        3
+#define R_LARCH_COPY                            4
+#define R_LARCH_JUMP_SLOT                       5
+#define R_LARCH_TLS_DTPMOD32                    6
+#define R_LARCH_TLS_DTPMOD64                    7
+#define R_LARCH_TLS_DTPREL32                    8
+#define R_LARCH_TLS_DTPREL64                    9
+#define R_LARCH_TLS_TPREL32                     10
+#define R_LARCH_TLS_TPREL64                     11
+#define R_LARCH_IRELATIVE                       12
+#define R_LARCH_MARK_LA                         20
+#define R_LARCH_MARK_PCREL                      21
+#define R_LARCH_SOP_PUSH_PCREL                  22
+#define R_LARCH_SOP_PUSH_ABSOLUTE               23
+#define R_LARCH_SOP_PUSH_DUP                    24
+#define R_LARCH_SOP_PUSH_GPREL                  25
+#define R_LARCH_SOP_PUSH_TLS_TPREL              26
+#define R_LARCH_SOP_PUSH_TLS_GOT                27
+#define R_LARCH_SOP_PUSH_TLS_GD                 28
+#define R_LARCH_SOP_PUSH_PLT_PCREL              29
+#define R_LARCH_SOP_ASSERT                      30
+#define R_LARCH_SOP_NOT                         31
+#define R_LARCH_SOP_SUB                         32
+#define R_LARCH_SOP_SL                          33
+#define R_LARCH_SOP_SR                          34
+#define R_LARCH_SOP_ADD                         35
+#define R_LARCH_SOP_AND                         36
+#define R_LARCH_SOP_IF_ELSE                     37
+#define R_LARCH_SOP_POP_32_S_10_5               38
+#define R_LARCH_SOP_POP_32_U_10_12              39
+#define R_LARCH_SOP_POP_32_S_10_12              40
+#define R_LARCH_SOP_POP_32_S_10_16              41
+#define R_LARCH_SOP_POP_32_S_10_16_S2           42
+#define R_LARCH_SOP_POP_32_S_5_20               43
+#define R_LARCH_SOP_POP_32_S_0_5_10_16_S2       44
+#define R_LARCH_SOP_POP_32_S_0_10_10_16_S2      45
+#define R_LARCH_SOP_POP_32_U                    46
+#define R_LARCH_ADD8                            47
+#define R_LARCH_ADD16                           48
+#define R_LARCH_ADD24                           49
+#define R_LARCH_ADD32                           50
+#define R_LARCH_ADD64                           51
+#define R_LARCH_SUB8                            52
+#define R_LARCH_SUB16                           53
+#define R_LARCH_SUB24                           54
+#define R_LARCH_SUB32                           55
+#define R_LARCH_SUB64                           56
+#define R_LARCH_GNU_VTINHERIT                   57
+#define R_LARCH_GNU_VTENTRY                     58
+#define R_LARCH_B16                             64
+#define R_LARCH_B21                             65
+#define R_LARCH_B26                             66
+#define R_LARCH_ABS_HI20                        67
+#define R_LARCH_ABS_LO12                        68
+#define R_LARCH_ABS64_LO20                      69
+#define R_LARCH_ABS64_HI12                      70
+#define R_LARCH_PCALA_HI20                      71
+#define R_LARCH_PCALA_LO12                      72
+#define R_LARCH_PCALA64_LO20                    73
+#define R_LARCH_PCALA64_HI12                    74
+#define R_LARCH_GOT_PC_HI20                     75
+#define R_LARCH_GOT_PC_LO12                     76
+#define R_LARCH_GOT64_PC_LO20                   77
+#define R_LARCH_GOT64_PC_HI12                   78
+#define R_LARCH_GOT_HI20                        79
+#define R_LARCH_GOT_LO12                        80
+#define R_LARCH_GOT64_LO20                      81
+#define R_LARCH_GOT64_HI12                      82
+#define R_LARCH_TLS_LE_HI20                     83
+#define R_LARCH_TLS_LE_LO12                     84
+#define R_LARCH_TLS_LE64_LO20                   85
+#define R_LARCH_TLS_LE64_HI12                   86
+#define R_LARCH_TLS_IE_PC_HI20                  87
+#define R_LARCH_TLS_IE_PC_LO12                  88
+#define R_LARCH_TLS_IE64_PC_LO20                89
+#define R_LARCH_TLS_IE64_PC_HI12                90
+#define R_LARCH_TLS_IE_HI20                     91
+#define R_LARCH_TLS_IE_LO12                     92
+#define R_LARCH_TLS_IE64_LO20                   93
+#define R_LARCH_TLS_IE64_HI12                   94
+#define R_LARCH_TLS_LD_PC_HI20                  95
+#define R_LARCH_TLS_LD_HI20                     96
+#define R_LARCH_TLS_GD_PC_HI20                  97
+#define R_LARCH_TLS_GD_HI20                     98
+#define R_LARCH_32_PCREL                        99
+#define R_LARCH_RELAX                           100
+#define R_LARCH_DELETE                          101
+#define R_LARCH_ALIGN                           102
+#define R_LARCH_PCREL20_S2                      103
+#define R_LARCH_CFA                             104
+#define R_LARCH_ADD6                            105
+#define R_LARCH_SUB6                            106
+#define R_LARCH_ADD_ULEB128                     107
+#define R_LARCH_SUB_ULEB128                     108
+#define R_LARCH_64_PCREL                        109
 
 #define	ELF_BSDF_SIGFASTBLK	0x0001	/* Kernel supports fast sigblock */
 #define	ELF_BSDF_VMNOOVERCOMMIT	0x0002
