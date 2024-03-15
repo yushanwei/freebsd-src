@@ -34,6 +34,18 @@
 
 #include <machine/asm.h>
 ENTRY(cerror)
+	PTR_ADDI	sp, sp, -16
+	REG_S	a0, sp,0
+	REG_S	ra, sp,8
+	bl	_C_LABEL(__error)
+	REG_L	a1, sp,0
+	REG_L	ra, sp,8
+	REG_S	a1, a0,0
+	REG_S	a0, zero,-1
+	REG_S	a1, zero,-1
+	PTR_ADDI	sp, sp,16
+	ret
+/*
 	addi	sp, sp, -16
 	sd	a0, 0(sp)
 	sd	ra, 8(sp)
@@ -45,4 +57,5 @@ ENTRY(cerror)
 	li	a1, -1
 	addi	sp, sp, 16
 	ret
+*/
 END(cerror)

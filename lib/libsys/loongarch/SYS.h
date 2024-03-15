@@ -37,16 +37,16 @@
 #include <machine/asm.h>
 
 #define	_SYSCALL(name)						\
-	li	t0, SYS_ ## name;				\
-	ecall
+	li.d	t0, SYS_ ## name;                               \
+	syscall	SYS_ ## name;
 
 #ifndef _SYSCALL_BODY
 #define	_SYSCALL_BODY(name)					\
 	_SYSCALL(name);						\
 	bnez	t0, 1f; 					\
 	ret;							\
-1:	la	t1, cerror;					\
-	jr	t1
+1:	la.pcrel	t1, cerror;				\
+	jirl	t1,t1,0;
 #endif
 
 #define	PSEUDO(name)						\
