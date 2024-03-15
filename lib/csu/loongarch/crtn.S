@@ -33,14 +33,17 @@
  */
 
 #include <machine/asm.h>
+#ifndef __clang__
+       .gnu_attribute 4, 0
+#endif
 	.section .init,"ax",@progbits
-	ld	ra, 0(sp)
-	addi	sp, sp, 16
+	LD	ra, sp, CALLFRAME_RA
+	ADDI sp, sp, CALLFRAME_SIZ
 	ret
 
 	.section .fini,"ax",@progbits
-	ld	ra, 0(sp)
-	addi	sp, sp, 16
+	LD	ra, sp, CALLFRAME_RA
+	ADDI sp, sp, CALLFRAME_SIZ
 	ret
 
 	.section .note.GNU-stack,"",%progbits

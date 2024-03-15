@@ -33,25 +33,24 @@
  */
 
 #include <machine/asm.h>
-# this puts __global_pointer$ into .dynsym, so symlook_obj can now find that
-# (see reloc.c)
-	.weak	__global_pointer$
-__global_pointer$:
 
+#ifndef __clang__
+       .gnu_attribute 4, 0
+#endif
 	.section .init,"ax",@progbits
 	.align	0
 	.globl	_init
 	.type	_init,@function
 _init:
-	addi	sp, sp, -16
-	sd	ra, 0(sp)
+	ADDI	sp, sp, -CALLFRAME_SIZ
+	ST	ra, sp, CALLFRAME_RA
 
 	.section .fini,"ax",@progbits
 	.align	0
 	.globl	_fini
 	.type	_fini,@function
 _fini:
-	addi	sp, sp, -16
-	sd	ra, 0(sp)
+	ADDI	sp, sp, -CALLFRAME_SIZ
+	ST	ra, sp, CALLFRAME_RA
 
 	.section .note.GNU-stack,"",%progbits

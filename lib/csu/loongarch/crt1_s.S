@@ -35,17 +35,28 @@
 
 #include <machine/asm.h>
 ENTRY(_start)
-	mv	a3, a2		# cleanup
-	addi	a1, a0, 8	# get argv
-	ld	a0, 0(a0)	# load argc
-	slli	t0, a0, 3	# mult by arg size
-	add	a2, a1, t0	# env is after argv
-	addi	a2, a2, 8	# argv is null terminated
-	.option push
-	.option norelax
-	lla	gp, __global_pointer$
-	.option pop
-	call	__start
+
+/* Terminate call stack by noting ra is undefined.  Use a dummy
+   .cfi_label to force starting the FDE.  */
+        .cfi_label .Ldummy
+        or              a5, a0, zero /* rtld_fini */
+
+        la.pcrel	a0, t0, main
+        LD		a1, sp, 0
+        ADDI		a2, sp, SZREG
+
+        /* Adjust $sp for 16-aligned */
+        BSTRINS         sp, zero, 3, 0
+
+        move            a3, zero /* used to be init */
+        move            a4, zero /* used to be fini */
+        or              a6, sp, zero /* stack_end */
+
+        la.pcrel        ra, t0, __start
+        jirl            ra, ra, 0
+
+        la.pcrel        ra, t0, abort
+        jirl            ra, ra, 0
 END(_start)
 
 	.section .note.GNU-stack,"",%progbits
