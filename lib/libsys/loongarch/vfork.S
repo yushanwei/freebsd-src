@@ -38,15 +38,15 @@
 ENTRY(__sys_vfork)
 	WEAK_REFERENCE(__sys_vfork, vfork)
 	WEAK_REFERENCE(__sys_vfork, _vfork)
-	mv	a2, ra
+	move	a2, ra
 
 	_SYSCALL(vfork)
 	bnez	t0, 1f
-	addi	a1, a1, -1
+	ADDI	a1, a1, -1
 	and	a0, a0, a1
-	mv	ra, a2
+	move	ra, a2
 
 	ret
-1:	la	t1, cerror
+1:	la.pcrel	t1, cerror
 	jr	t1
 END(__sys_vfork)
