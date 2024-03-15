@@ -28,7 +28,7 @@
 #include <sys/time.h>
 #include <sys/vdso.h>
 
-#include <machine/riscvreg.h>
+#include <machine/loongarchreg.h>
 
 #include <errno.h>
 
@@ -38,10 +38,10 @@
 int
 __vdso_gettc(const struct vdso_timehands *th, u_int *tc)
 {
-	if (th->th_algo != VDSO_TH_ALGO_RISCV_RDTIME)
+	if (th->th_algo != VDSO_TH_ALGO_LOONGARCH_RDTIME)
 		return (ENOSYS);
 
-	*tc = csr_read(time);
+	*tc = csr_rdtime();
 	return (0);
 }
 
