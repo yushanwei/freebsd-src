@@ -38,11 +38,6 @@
 
 #include <machine/asm.h>
 ENTRY(fabs)
-#ifdef __riscv_float_abi_double
-	fabs.d	fa0, fa0
-#else
-	slli	a0, a0, 1
-	srli	a0, a0, 1
-#endif
+	FABS	fa0, fa0
 	ret
 END(fabs)
