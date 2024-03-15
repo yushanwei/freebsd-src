@@ -28,15 +28,15 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _LIBC_RISCV_STATIC_TLS_H
-#define _LIBC_RISCV_STATIC_TLS_H
+#ifndef _LIBC_LOONGARCH_STATIC_TLS_H
+#define _LIBC_LOONGARCH_STATIC_TLS_H
 
 static __inline uintptr_t
 _libc_get_static_tls_base(size_t offset)
 {
 	uintptr_t tlsbase;
 
-	__asm __volatile("mv %0, tp" : "=r"(tlsbase));
+	__asm __volatile("move %0, $tp" : "=r"(tlsbase));
 	tlsbase += offset;
 	return (tlsbase);
 }
