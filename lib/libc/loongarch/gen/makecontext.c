@@ -34,7 +34,7 @@
 
 #include <sys/param.h>
 
-#include <machine/riscvreg.h>
+#include <machine/loongarchreg.h>
 
 #include <inttypes.h>
 #include <stdarg.h>
@@ -82,7 +82,7 @@ __makecontext(ucontext_t *ucp, void (*func)(void), int argc, ...)
 	/* Set the stack */
 	gp->gp_sp = STACKALIGN(ucp->uc_stack.ss_sp + ucp->uc_stack.ss_size);
 	/* Arrange for return via the trampoline code. */
-	gp->gp_sepc = (__register_t)_ctx_start;
+	gp->gp_era = (__register_t)_ctx_start;
 	gp->gp_s[0] = (__register_t)func;
 	gp->gp_s[1] = (__register_t)ucp;
 }
