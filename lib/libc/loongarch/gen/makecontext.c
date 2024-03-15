@@ -34,7 +34,7 @@
 
 #include <sys/param.h>
 
-#include <machine/riscvreg.h>
+#include <machine/loongarchreg.h>
 
 #include <inttypes.h>
 #include <stdarg.h>
@@ -60,7 +60,7 @@ __weak_reference(__makecontext, makecontext);
 void
 __makecontext(ucontext_t *ucp, void (*func)(void), int argc, ...)
 {
-	struct gpregs *gp;
+	struct reg *gp;
 	va_list ap;
 	int i;
 
@@ -71,18 +71,18 @@ __makecontext(ucontext_t *ucp, void (*func)(void), int argc, ...)
 	if ((argc < 0) || (argc > 8))
 		return;
 
-	gp = &ucp->uc_mcontext.mc_gpregs;
+	gp = &ucp->uc_mcontext.mc_regs;
 
 	va_start(ap, argc);
 	/* Pass up to eight arguments in a0-7. */
 	for (i = 0; i < argc && i < 8; i++)
-		gp->gp_a[i] = va_arg(ap, uint64_t);
+		gp->a[i] = va_arg(ap, uint64_t);
 	va_end(ap);
 
 	/* Set the stack */
-	gp->gp_sp = STACKALIGN(ucp->uc_stack.ss_sp + ucp->uc_stack.ss_size);
+	gp->sp = STACKALIGN(ucp->uc_stack.ss_sp + ucp->uc_stack.ss_size);
 	/* Arrange for return via the trampoline code. */
-	gp->gp_sepc = (__register_t)_ctx_start;
-	gp->gp_s[0] = (__register_t)func;
-	gp->gp_s[1] = (__register_t)ucp;
+	gp->era = (__register_t)_ctx_start;
+	gp->s[0] = (__register_t)func;
+	gp->s[1] = (__register_t)ucp;
 }

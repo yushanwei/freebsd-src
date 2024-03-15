@@ -34,7 +34,7 @@ this code that are retained.
 Include common integer types and flags.
 -------------------------------------------------------------------------------
 */
-#include "riscv-gcc.h"
+#include "loongarch-gcc.h"
 
 /*
 -------------------------------------------------------------------------------
