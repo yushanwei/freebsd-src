@@ -37,23 +37,36 @@
 
 ENTRY(sigsetjmp)
 	beqz	a1, 1f
-	tail	_C_LABEL(setjmp)
+	b	_C_LABEL(setjmp)
 1:
-	tail	_C_LABEL(_setjmp)
+	b	_C_LABEL(_setjmp)
 END(sigsetjmp)
 
-ENTRY(siglongjmp)
-	/* Load the _setjmp magic */
-	ld	a2, .Lmagic
-	ld	a3, 0(a0)
-
-	/* Check the magic */
-	beq	a2, a3, 1f
-	tail	_C_LABEL(longjmp)
-1:
-	tail	_C_LABEL(_longjmp)
-
-	.align	3
-.Lmagic:
-	.quad	_JB_MAGIC__SETJMP
-END(siglongjmp)
+ENTRY (siglongjmp)
+        LD ra, a0, 0*SZREG
+        LD sp, a0, 1*SZREG
+        LD u0,  a0, 2*SZREG
+        LD fp, a0, 3*SZREG
+        LD s0, a0, 4*SZREG
+        LD s1, a0, 5*SZREG
+        LD s2, a0, 6*SZREG
+        LD s3, a0, 7*SZREG
+        LD s4, a0, 8*SZREG
+        LD s5, a0, 9*SZREG
+        LD s6, a0, 10*SZREG
+        LD s7, a0, 11*SZREG
+        LD s8, a0, 12*SZREG
+#ifndef __loongarch_soft_float
+        FLD fs0, a0, 13*SZREG + 0*SZFREG
+        FLD fs1, a0, 13*SZREG + 1*SZFREG
+        FLD fs2, a0, 13*SZREG + 2*SZFREG
+        FLD fs3, a0, 13*SZREG + 3*SZFREG
+        FLD fs4, a0, 13*SZREG + 4*SZFREG
+        FLD fs5, a0, 13*SZREG + 5*SZFREG
+        FLD fs6, a0, 13*SZREG + 6*SZFREG
+        FLD fs7, a0, 13*SZREG + 7*SZFREG
+#endif
+        sltui   a0, a1, 1
+        ADD     a0, a0, a1       # a0 = (a1 == 0) ? 1 : a1
+        jirl    zero, ra, 0
+END (siglongjmp)
