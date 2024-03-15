@@ -37,22 +37,12 @@
 #include <fenv.h>
 #include <float.h>
 
-#ifdef __riscv_float_abi_soft
-#include "softfloat-for-gcc.h"
-#include "milieu.h"
-#include "softfloat.h"
-#endif
-
 int
 __flt_rounds(void)
 {
 	uint64_t mode;
 
-#ifdef __riscv_float_abi_soft
-	mode = __softfloat_float_rounding_mode;
-#else
-	__asm __volatile("csrr %0, fcsr" : "=r" (mode));
-#endif
+	__asm __volatile("movfcsr2gr %0, $fcsr3" : "=r" (mode));
 
 	switch (mode & _ROUND_MASK) {
 	case FE_TOWARDZERO:

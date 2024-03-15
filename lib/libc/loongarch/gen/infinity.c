@@ -4,7 +4,7 @@
 
 #include <math.h>
 
-/* bytes for +Infinity on riscv */
+/* bytes for +Infinity */
 const union __infinity_un __infinity = { { 0, 0, 0, 0, 0, 0, 0xf0, 0x7f } };
 
 /* bytes for NaN */

@@ -34,7 +34,7 @@
 
 #include <sys/param.h>
 
-#include <machine/riscvreg.h>
+#include <machine/loongarchreg.h>
 
 #include <inttypes.h>
 #include <stdarg.h>

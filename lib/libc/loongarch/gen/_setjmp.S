@@ -36,109 +36,72 @@
 #include <machine/setjmp.h>
 
 ENTRY(_setjmp)
-	/* Store the magic value and stack pointer */
-	ld	t0, .Lmagic
-	sd	t0, (0 * 8)(a0)
-	sd	sp, (1 * 8)(a0)
-	addi	a0, a0, (2 * 8)
-
-	/* Store the general purpose registers and ra */
-	sd	s0, (0 * 8)(a0)
-	sd	s1, (1 * 8)(a0)
-	sd	s2, (2 * 8)(a0)
-	sd	s3, (3 * 8)(a0)
-	sd	s4, (4 * 8)(a0)
-	sd	s5, (5 * 8)(a0)
-	sd	s6, (6 * 8)(a0)
-	sd	s7, (7 * 8)(a0)
-	sd	s8, (8 * 8)(a0)
-	sd	s9, (9 * 8)(a0)
-	sd	s10, (10 * 8)(a0)
-	sd	s11, (11 * 8)(a0)
-	sd	ra, (12 * 8)(a0)
-	addi	a0, a0, (13 * 8)
-
-#if !defined(_STANDALONE) && defined(__riscv_float_abi_double)
-	/* Store the fpe registers */
-	fsd	fs0, (0 * 8)(a0)
-	fsd	fs1, (1 * 8)(a0)
-	fsd	fs2, (2 * 8)(a0)
-	fsd	fs3, (3 * 8)(a0)
-	fsd	fs4, (4 * 8)(a0)
-	fsd	fs5, (5 * 8)(a0)
-	fsd	fs6, (6 * 8)(a0)
-	fsd	fs7, (7 * 8)(a0)
-	fsd	fs8, (8 * 8)(a0)
-	fsd	fs9, (9 * 8)(a0)
-	fsd	fs10, (10 * 8)(a0)
-	fsd	fs11, (11 * 8)(a0)
-	addi	a0, a0, (12 * 8)
+#if __loongarch_grlen == 32
+  st.w   ra,  a0, 0
+  st.w   sp,  a0, 4
+  st.w   $r21,   a0, 8
+  st.w   fp,  a0, 12
+  st.w   s0,  a0, 16
+  st.w   s1,  a0, 20
+  st.w   s2,  a0, 24
+  st.w   s3,  a0, 28
+  st.w   s4,  a0, 32
+  st.w   s5,  a0, 36
+  st.w   s6,  a0, 40
+  st.w   s7,  a0, 44
+  st.w   s8,  a0, 48
+#else /* loongarch_grlen == 64 */
+  st.d   ra,  a0, 0
+  st.d   sp,  a0, 8
+  st.d   $r21,   a0, 16
+  st.d   fp,  a0, 24
+  st.d   s0,  a0, 32
+  st.d   s1,  a0, 40
+  st.d   s2,  a0, 48
+  st.d   s3,  a0, 56
+  st.d   s4,  a0, 64
+  st.d   s5,  a0, 72
+  st.d   s6,  a0, 80
+  st.d   s7,  a0, 88
+  st.d   s8,  a0, 96
 #endif
-
-	/* Return value */
-	li	a0, 0
-	ret
-	.align	3
-.Lmagic:
-	.quad	_JB_MAGIC__SETJMP
+  move   a0, zero
+  jr     ra
 END(_setjmp)
 
 ENTRY(_longjmp)
-	/* Check the magic value */
-	ld	t0, 0(a0)
-	ld	t1, .Lmagic
-	bne	t0, t1, botch
-
-	/* Restore the stack pointer */
-	ld	t0, 8(a0)
-	mv	sp, t0
-	addi	a0, a0, (2 * 8)
-
-	/* Restore the general purpose registers and ra */
-	ld	s0, (0 * 8)(a0)
-	ld	s1, (1 * 8)(a0)
-	ld	s2, (2 * 8)(a0)
-	ld	s3, (3 * 8)(a0)
-	ld	s4, (4 * 8)(a0)
-	ld	s5, (5 * 8)(a0)
-	ld	s6, (6 * 8)(a0)
-	ld	s7, (7 * 8)(a0)
-	ld	s8, (8 * 8)(a0)
-	ld	s9, (9 * 8)(a0)
-	ld	s10, (10 * 8)(a0)
-	ld	s11, (11 * 8)(a0)
-	ld	ra, (12 * 8)(a0)
-	addi	a0, a0, (13 * 8)
-
-#if !defined(_STANDALONE) && defined(__riscv_float_abi_double)
-	/* Restore the fpe registers */
-	fld	fs0, (0 * 8)(a0)
-	fld	fs1, (1 * 8)(a0)
-	fld	fs2, (2 * 8)(a0)
-	fld	fs3, (3 * 8)(a0)
-	fld	fs4, (4 * 8)(a0)
-	fld	fs5, (5 * 8)(a0)
-	fld	fs6, (6 * 8)(a0)
-	fld	fs7, (7 * 8)(a0)
-	fld	fs8, (8 * 8)(a0)
-	fld	fs9, (9 * 8)(a0)
-	fld	fs10, (10 * 8)(a0)
-	fld	fs11, (11 * 8)(a0)
-	addi	a0, a0, (12 * 8)
+#if __loongarch_grlen == 32
+  ld.w   ra,  a0, 0
+  ld.w   sp,  a0, 4
+  ld.w   $r21,   a0, 8
+  ld.w   fp,  a0, 12
+  ld.w   s0,  a0, 16
+  ld.w   s1,  a0, 20
+  ld.w   s2,  a0, 24
+  ld.w   s3,  a0, 28
+  ld.w   s4,  a0, 32
+  ld.w   s5,  a0, 36
+  ld.w   s6,  a0, 40
+  ld.w   s7,  a0, 44
+  ld.w   s8,  a0, 48
+#else /* loongarch_grlen == 64 */
+  ld.d   ra,  a0, 0
+  ld.d   sp,  a0, 8
+  ld.d   $r21,   a0, 16
+  ld.d   fp,  a0, 24
+  ld.d   s0,  a0, 32
+  ld.d   s1,  a0, 40
+  ld.d   s2,  a0, 48
+  ld.d   s3,  a0, 56
+  ld.d   s4,  a0, 64
+  ld.d   s5,  a0, 72
+  ld.d   s6,  a0, 80
+  ld.d   s7,  a0, 88
+  ld.d   s8,  a0, 96
 #endif
-
-	/* Load the return value */
-	mv	a0, a1
-	bnez	a1, 1f
-	li	a0, 1
+  bnez   a1,  1f
+  addi.w a1,  a1, 1
 1:
-	ret
-
-botch:
-#ifdef _STANDALONE
-	j	botch
-#else
-	call	_C_LABEL(longjmperror)
-	call	_C_LABEL(abort)
-#endif
+  move   a0,  a1
+  jr     ra
 END(_longjmp)
