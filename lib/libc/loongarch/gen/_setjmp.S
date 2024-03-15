@@ -36,109 +36,60 @@
 #include <machine/setjmp.h>
 
 ENTRY(_setjmp)
-	/* Store the magic value and stack pointer */
-	ld	t0, .Lmagic
-	sd	t0, (0 * 8)(a0)
-	sd	sp, (1 * 8)(a0)
-	addi	a0, a0, (2 * 8)
-
-	/* Store the general purpose registers and ra */
-	sd	s0, (0 * 8)(a0)
-	sd	s1, (1 * 8)(a0)
-	sd	s2, (2 * 8)(a0)
-	sd	s3, (3 * 8)(a0)
-	sd	s4, (4 * 8)(a0)
-	sd	s5, (5 * 8)(a0)
-	sd	s6, (6 * 8)(a0)
-	sd	s7, (7 * 8)(a0)
-	sd	s8, (8 * 8)(a0)
-	sd	s9, (9 * 8)(a0)
-	sd	s10, (10 * 8)(a0)
-	sd	s11, (11 * 8)(a0)
-	sd	ra, (12 * 8)(a0)
-	addi	a0, a0, (13 * 8)
-
-#if !defined(_STANDALONE) && defined(__riscv_float_abi_double)
-	/* Store the fpe registers */
-	fsd	fs0, (0 * 8)(a0)
-	fsd	fs1, (1 * 8)(a0)
-	fsd	fs2, (2 * 8)(a0)
-	fsd	fs3, (3 * 8)(a0)
-	fsd	fs4, (4 * 8)(a0)
-	fsd	fs5, (5 * 8)(a0)
-	fsd	fs6, (6 * 8)(a0)
-	fsd	fs7, (7 * 8)(a0)
-	fsd	fs8, (8 * 8)(a0)
-	fsd	fs9, (9 * 8)(a0)
-	fsd	fs10, (10 * 8)(a0)
-	fsd	fs11, (11 * 8)(a0)
-	addi	a0, a0, (12 * 8)
+        ST ra, a0, 0*SZREG
+        ST sp, a0, 1*SZREG
+	ST u0, a0, 2*SZREG
+        ST fp, a0, 3*SZREG
+        ST s0, a0, 4*SZREG
+        ST s1, a0, 5*SZREG
+        ST s2, a0, 6*SZREG
+        ST s3, a0, 7*SZREG
+        ST s4, a0, 8*SZREG
+        ST s5, a0, 9*SZREG
+        ST s6, a0, 10*SZREG
+        ST s7, a0, 11*SZREG
+        ST s8, a0, 12*SZREG
+#ifndef __loongarch_soft_float
+        FST fs0, a0, 13*SZREG + 0*SZFREG
+        FST fs1, a0, 13*SZREG + 1*SZFREG
+        FST fs2, a0, 13*SZREG + 2*SZFREG
+        FST fs3, a0, 13*SZREG + 3*SZFREG
+        FST fs4, a0, 13*SZREG + 4*SZFREG
+        FST fs5, a0, 13*SZREG + 5*SZFREG
+        FST fs6, a0, 13*SZREG + 6*SZFREG
+        FST fs7, a0, 13*SZREG + 7*SZFREG
 #endif
 
-	/* Return value */
-	li	a0, 0
-	ret
-	.align	3
-.Lmagic:
-	.quad	_JB_MAGIC__SETJMP
+  move   a0, zero
+  jr     ra
 END(_setjmp)
 
 ENTRY(_longjmp)
-	/* Check the magic value */
-	ld	t0, 0(a0)
-	ld	t1, .Lmagic
-	bne	t0, t1, botch
+        LD ra, a0, 0*SZREG
+        LD sp, a0, 1*SZREG
+	LD u0, a0, 2*SZREG
+        LD fp, a0, 3*SZREG
+        LD s0, a0, 4*SZREG
+        LD s1, a0, 5*SZREG
+        LD s2, a0, 6*SZREG
+        LD s3, a0, 7*SZREG
+        LD s4, a0, 8*SZREG
+        LD s5, a0, 9*SZREG
+        LD s6, a0, 10*SZREG
+        LD s7, a0, 11*SZREG
+        LD s8, a0, 12*SZREG
 
-	/* Restore the stack pointer */
-	ld	t0, 8(a0)
-	mv	sp, t0
-	addi	a0, a0, (2 * 8)
-
-	/* Restore the general purpose registers and ra */
-	ld	s0, (0 * 8)(a0)
-	ld	s1, (1 * 8)(a0)
-	ld	s2, (2 * 8)(a0)
-	ld	s3, (3 * 8)(a0)
-	ld	s4, (4 * 8)(a0)
-	ld	s5, (5 * 8)(a0)
-	ld	s6, (6 * 8)(a0)
-	ld	s7, (7 * 8)(a0)
-	ld	s8, (8 * 8)(a0)
-	ld	s9, (9 * 8)(a0)
-	ld	s10, (10 * 8)(a0)
-	ld	s11, (11 * 8)(a0)
-	ld	ra, (12 * 8)(a0)
-	addi	a0, a0, (13 * 8)
-
-#if !defined(_STANDALONE) && defined(__riscv_float_abi_double)
-	/* Restore the fpe registers */
-	fld	fs0, (0 * 8)(a0)
-	fld	fs1, (1 * 8)(a0)
-	fld	fs2, (2 * 8)(a0)
-	fld	fs3, (3 * 8)(a0)
-	fld	fs4, (4 * 8)(a0)
-	fld	fs5, (5 * 8)(a0)
-	fld	fs6, (6 * 8)(a0)
-	fld	fs7, (7 * 8)(a0)
-	fld	fs8, (8 * 8)(a0)
-	fld	fs9, (9 * 8)(a0)
-	fld	fs10, (10 * 8)(a0)
-	fld	fs11, (11 * 8)(a0)
-	addi	a0, a0, (12 * 8)
+#ifndef __loongarch_soft_float
+        FLD fs0, a0, 13*SZREG + 0*SZFREG
+        FLD fs1, a0, 13*SZREG + 1*SZFREG
+        FLD fs2, a0, 13*SZREG + 2*SZFREG
+        FLD fs3, a0, 13*SZREG + 3*SZFREG
+        FLD fs4, a0, 13*SZREG + 4*SZFREG
+        FLD fs5, a0, 13*SZREG + 5*SZFREG
+        FLD fs6, a0, 13*SZREG + 6*SZFREG
+        FLD fs7, a0, 13*SZREG + 7*SZFREG
 #endif
-
-	/* Load the return value */
-	mv	a0, a1
-	bnez	a1, 1f
-	li	a0, 1
-1:
-	ret
-
-botch:
-#ifdef _STANDALONE
-	j	botch
-#else
-	call	_C_LABEL(longjmperror)
-	call	_C_LABEL(abort)
-#endif
+        sltui a0, a1, 1
+        ADD a0, a0, a1       # a0 = (a1 == 0) ? 1 : a1
+        jirl zero, ra, 0
 END(_longjmp)

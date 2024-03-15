@@ -45,7 +45,7 @@ crt1_handle_rela(const Elf_Rela *r)
 	Elf_Addr *ptr, *where, target;
 
 	switch (ELF_R_TYPE(r->r_info)) {
-	case R_RISCV_IRELATIVE:
+	case R_LARCH_IRELATIVE:
 		ptr = (Elf_Addr *)r->r_addend;
 		where = (Elf_Addr *)r->r_offset;
 		target = ((ifunc_resolver_t)ptr)(elf_hwcap,
