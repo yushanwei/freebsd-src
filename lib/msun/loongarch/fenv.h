@@ -55,7 +55,7 @@ typedef	__uint64_t	fexcept_t;
 			 FE_INVALID | FE_OVERFLOW | FE_UNDERFLOW)
 
 /*
- * RISC-V Rounding modes
+ *  Rounding modes
  */
 #define	_ROUND_SHIFT	5
 #define	FE_TONEAREST	(0x00 << _ROUND_SHIFT)
@@ -71,37 +71,24 @@ __BEGIN_DECLS
 extern const fenv_t	__fe_dfl_env;
 #define	FE_DFL_ENV	(&__fe_dfl_env)
 
-#if !defined(__loongarch_soft_float) && !defined(__loongarch_double_float)
-#if defined(__loongarch_single_float)
-#error single precision floating point ABI not supported
-#else
-#error compiler did not set soft/hard float macros
-#endif
+#ifndef __loongarch_double_float
+#error only double hard float ABI supported
 #endif
 
-#ifndef __loongarch_soft_float
-#define	__rfs(__fcsr)	__asm __volatile("csrr %0, fcsr" : "=r" (__fcsr))
-#define	__wfs(__fcsr)	__asm __volatile("csrw fcsr, %0" :: "r" (__fcsr))
-#endif
+#  ifdef __clang__
+#    define	__rfs(__fcsr)	__asm __volatile("movfcsr2gr %0, $fcsr0" : "=r" (__fcsr))
+#    define	__wfs(__fcsr)	__asm __volatile("movgr2fcsr $fcsr0, %0" :: "r" (__fcsr))
+#  else
+#    define	__rfs(__fcsr)	__asm __volatile("movfcsr2gr %0, $r0" : "=r" (__fcsr))
+#    define	__wfs(__fcsr)	__asm __volatile("movgr2fcsr $r0, %0" :: "r" (__fcsr))
+#  endif
 
-#ifdef __loongarch_soft_float
-int feclearexcept(int __excepts);
-int fegetexceptflag(fexcept_t *__flagp, int __excepts);
-int fesetexceptflag(const fexcept_t *__flagp, int __excepts);
-int feraiseexcept(int __excepts);
-int fetestexcept(int __excepts);
-int fegetround(void);
-int fesetround(int __round);
-int fegetenv(fenv_t *__envp);
-int feholdexcept(fenv_t *__envp);
-int fesetenv(const fenv_t *__envp);
-int feupdateenv(const fenv_t *__envp);
-#else
+
 __fenv_static inline int
 feclearexcept(int __excepts)
 {
 
-	__asm __volatile("csrc fflags, %0" :: "r"(__excepts));
+	__asm __volatile("movgr2fcsr $fcsr2, %0" :: "r"(__excepts));
 
 	return (0);
 }
@@ -123,8 +110,8 @@ fesetexceptflag(const fexcept_t *__flagp, int __excepts)
 	fexcept_t __fcsr;
 
 	__fcsr = *__flagp;
-	__asm __volatile("csrc fflags, %0" :: "r"(__excepts));
-	__asm __volatile("csrs fflags, %0" :: "r"(__fcsr & __excepts));
+	__asm __volatile("movgr2fcsr $fcsr2, %0" :: "r"(__excepts));
+	__asm __volatile("movgr2fcsr $fcsr2, %0" :: "r"(__fcsr & __excepts));
 
 	return (0);
 }
@@ -133,7 +120,9 @@ __fenv_static inline int
 feraiseexcept(int __excepts)
 {
 
-	__asm __volatile("csrs fflags, %0" :: "r"(__excepts));
+	__asm __volatile(
+		"movgr2fcsr $fcsr0,%0		\n"
+		:: "r"(__excepts));
 
 	return (0);
 }
@@ -212,18 +201,10 @@ feupdateenv(const fenv_t *__envp)
 
 	return (0);
 }
-#endif /* !__loongarch_float_abi_soft */
 
 #if __BSD_VISIBLE
 
-/* We currently provide no external definitions of the functions below. */
-
-#ifdef __loongarch_soft_float
-int feenableexcept(int __mask);
-int fedisableexcept(int __mask);
-int fegetexcept(void);
-#else
-static inline int
+__fenv_static inline int
 feenableexcept(int __mask __unused)
 {
 
@@ -232,7 +213,7 @@ feenableexcept(int __mask __unused)
 	return (0);
 }
 
-static inline int
+__fenv_static inline int
 fedisableexcept(int __mask __unused)
 {
 
@@ -241,6 +222,7 @@ fedisableexcept(int __mask __unused)
 	return (0);
 }
 
+/* We currently provide no external definition of fegetexcept(). */
 static inline int
 fegetexcept(void)
 {
@@ -249,7 +231,6 @@ fegetexcept(void)
 
 	return (0);
 }
-#endif /* !__loongarch_float_abi_soft */
 
 #endif /* __BSD_VISIBLE */
 
