@@ -66,6 +66,8 @@ proc_regget(struct proc_handle *phdl, proc_reg_t reg, unsigned long *regvalue)
 		*regvalue = regs.pc;
 #elif defined(__riscv)
 		*regvalue = regs.sepc;
+#elif defined(__loongarch__)
+		*regvalue = regs.sepc;
 #endif
 		break;
 	case REG_SP:
@@ -80,6 +82,8 @@ proc_regget(struct proc_handle *phdl, proc_reg_t reg, unsigned long *regvalue)
 #elif defined(__powerpc__)
 		*regvalue = regs.fixreg[1];
 #elif defined(__riscv)
+		*regvalue = regs.sp;
+#elif defined(__loongarch__)
 		*regvalue = regs.sp;
 #endif
 		break;
@@ -117,6 +121,8 @@ proc_regset(struct proc_handle *phdl, proc_reg_t reg, unsigned long regvalue)
 		regs.pc = regvalue;
 #elif defined(__riscv)
 		regs.sepc = regvalue;
+#elif defined(__loongarch__)
+		regs.sepc = regvalue;
 #endif
 		break;
 	case REG_SP:
@@ -131,6 +137,8 @@ proc_regset(struct proc_handle *phdl, proc_reg_t reg, unsigned long regvalue)
 #elif defined(__powerpc__)
 		regs.fixreg[1] = regvalue;
 #elif defined(__riscv)
+		regs.sp = regvalue;
+#elif defined(__loongarch__)
 		regs.sp = regvalue;
 #endif
 		break;

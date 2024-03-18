@@ -60,6 +60,9 @@
 #elif defined(__riscv)
 #define	BREAKPOINT_INSTR	0x00100073	/* sbreak */
 #define	BREAKPOINT_INSTR_SZ	4
+#elif defined(__loongarch__)
+#define	BREAKPOINT_INSTR	0x00100073	/* break */
+#define	BREAKPOINT_INSTR_SZ	4
 #else
 #error "Add support for your architecture"
 #endif
