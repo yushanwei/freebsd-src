@@ -47,29 +47,6 @@
 #define	RELOC_ALIGNED_P(x) \
 	(((uintptr_t)(x) & (sizeof(void *) - 1)) == 0)
 
-uint64_t
-set_gp(Obj_Entry *obj)
-{
-	uint64_t old;
-	SymLook req;
-	uint64_t gp;
-	int res;
-
-	__asm __volatile("mv    %0, gp" : "=r"(old));
-
-	symlook_init(&req, "__global_pointer$");
-	req.ventry = NULL;
-	req.flags = SYMLOOK_EARLY;
-	res = symlook_obj(&req, obj);
-
-	if (res == 0) {
-		gp = req.sym_out->st_value;
-		__asm __volatile("mv    gp, %0" :: "r"(gp));
-	}
-
-	return (old);
-}
-
 void
 init_pltgot(Obj_Entry *obj)
 {
@@ -103,7 +80,7 @@ do_copy_relocations(Obj_Entry *dstobj)
 	relalim = (const Elf_Rela *)((const char *)dstobj->rela +
 	    dstobj->relasize);
 	for (rela = dstobj->rela; rela < relalim; rela++) {
-		if (ELF_R_TYPE(rela->r_info) != R_RISCV_COPY)
+		if (ELF_R_TYPE(rela->r_info) != R_LARCH_COPY)
 			continue;
 
 		dstaddr = (void *)(dstobj->relocbase + rela->r_offset);
@@ -152,7 +129,7 @@ reloc_plt(Obj_Entry *obj, int flags __unused, RtldLockState *lockstate __unused)
 	for (rela = obj->pltrela; rela < relalim; rela++) {
 		Elf_Addr *where;
 
-		assert(ELF_R_TYPE(rela->r_info) == R_RISCV_JUMP_SLOT);
+		assert(ELF_R_TYPE(rela->r_info) == R_LARCH_JUMP_SLOT);
 
 		where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
 		*where += (Elf_Addr)obj->relocbase;
@@ -179,7 +156,7 @@ reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 
 		where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
 		switch(ELF_R_TYPE(rela->r_info)) {
-		case R_RISCV_JUMP_SLOT:
+		case R_LARCH_JUMP_SLOT:
 			def = find_symdef(ELF_R_SYM(rela->r_info), obj,
 			    &defobj, SYMLOOK_IN_PLT | flags, NULL, lockstate);
 			if (def == NULL) {
@@ -232,7 +209,7 @@ reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
     const Elf_Rel *rel)
 {
 
-	assert(ELF_R_TYPE(rel->r_info) == R_RISCV_JUMP_SLOT);
+	assert(ELF_R_TYPE(rel->r_info) == R_LARCH_JUMP_SLOT);
 
 	if (*where != target && !ld_bind_not)
 		*where = target;
@@ -274,12 +251,12 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 		symnum = ELF_R_SYM(rela->r_info);
 
 		switch (ELF_R_TYPE(rela->r_info)) {
-		case R_RISCV_JUMP_SLOT:
+		case R_LARCH_JUMP_SLOT:
 			/* This will be handled by the plt/jmpslot routines */
 			break;
-		case R_RISCV_NONE:
+		case R_LARCH_NONE:
 			break;
-		case R_RISCV_64:
+		case R_LARCH_64:
 			def = find_symdef(symnum, obj, &defobj, flags, cache,
 			    lockstate);
 			if (def == NULL)
@@ -288,7 +265,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 			*where = (Elf_Addr)(defobj->relocbase + def->st_value +
 			    rela->r_addend);
 			break;
-		case R_RISCV_TLS_DTPMOD64:
+		case R_LARCH_TLS_DTPMOD64:
 			def = find_symdef(symnum, obj, &defobj, flags, cache,
 			    lockstate);
 			if (def == NULL)
@@ -296,7 +273,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 
 			*where += (Elf_Addr)defobj->tlsindex;
 			break;
-		case R_RISCV_COPY:
+		case R_LARCH_COPY:
 			/*
 			 * These are deferred until all other relocations have
 			 * been done. All we do here is make sure that the
@@ -304,12 +281,12 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 			 * are allowed only in executable files.
 			 */
 			if (!obj->mainprog) {
-				_rtld_error("%s: Unexpected R_RISCV_COPY "
+				_rtld_error("%s: Unexpected R_LARCH_COPY "
 				    "relocation in shared library", obj->path);
 				return (-1);
 			}
 			break;
-		case R_RISCV_TLS_DTPREL64:
+		case R_LARCH_TLS_DTPREL64:
 			def = find_symdef(symnum, obj, &defobj, flags, cache,
 			    lockstate);
 			if (def == NULL)
@@ -335,7 +312,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 			*where += (Elf_Addr)(def->st_value + rela->r_addend
 			    - TLS_DTV_OFFSET);
 			break;
-		case R_RISCV_TLS_TPREL64:
+		case R_LARCH_TLS_TPREL64:
 			def = find_symdef(symnum, obj, &defobj, flags, cache,
 			    lockstate);
 			if (def == NULL)
@@ -362,7 +339,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 			*where = (def->st_value + rela->r_addend +
 			    defobj->tlsoffset - TLS_TP_OFFSET - TLS_TCB_SIZE);
 			break;
-		case R_RISCV_RELATIVE:
+		case R_LARCH_RELATIVE:
 			*where = (Elf_Addr)(obj->relocbase + rela->r_addend);
 			break;
 		default:
