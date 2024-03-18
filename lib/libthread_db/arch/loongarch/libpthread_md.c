@@ -45,15 +45,15 @@ pt_reg_to_ucontext(const struct reg *r, ucontext_t *uc)
 
 	mc = &uc->uc_mcontext;
 
-	memcpy(mc->mc_gpregs.gp_t, r->t, sizeof(mc->mc_gpregs.gp_t));
-	memcpy(mc->mc_gpregs.gp_s, r->s, sizeof(mc->mc_gpregs.gp_s));
-	memcpy(mc->mc_gpregs.gp_a, r->a, sizeof(mc->mc_gpregs.gp_a));
-	mc->mc_gpregs.gp_ra = r->ra;
-	mc->mc_gpregs.gp_sp = r->sp;
-	mc->mc_gpregs.gp_gp = r->gp;
-	mc->mc_gpregs.gp_tp = r->tp;
-	mc->mc_gpregs.gp_sepc = r->sepc;
-	mc->mc_gpregs.gp_sstatus = r->sstatus;
+	memcpy(mc->mc_regs.t, r->t, sizeof(mc->mc_regs.t));
+	memcpy(mc->mc_regs.s, r->s, sizeof(mc->mc_regs.s));
+	memcpy(mc->mc_regs.a, r->a, sizeof(mc->mc_regs.a));
+	mc->mc_regs.ra = r->ra;
+	mc->mc_regs.sp = r->sp;
+	mc->mc_regs.sp = r->fp;
+	mc->mc_regs.tp = r->tp;
+	mc->mc_regs.era = r->era;
+	mc->mc_regs.estat = r->estat;
 }
 
 void
@@ -63,15 +63,15 @@ pt_ucontext_to_reg(const ucontext_t *uc, struct reg *r)
 
 	mc = &uc->uc_mcontext;
 
-	memcpy(r->t, mc->mc_gpregs.gp_t, sizeof(mc->mc_gpregs.gp_t));
-	memcpy(r->s, mc->mc_gpregs.gp_s, sizeof(mc->mc_gpregs.gp_s));
-	memcpy(r->a, mc->mc_gpregs.gp_a, sizeof(mc->mc_gpregs.gp_a));
-	r->ra = mc->mc_gpregs.gp_ra;
-	r->sp = mc->mc_gpregs.gp_sp;
-	r->gp = mc->mc_gpregs.gp_gp;
-	r->tp = mc->mc_gpregs.gp_tp;
-	r->sepc = mc->mc_gpregs.gp_sepc;
-	r->sstatus = mc->mc_gpregs.gp_sstatus;
+	memcpy(r->t, mc->mc_regs.t, sizeof(mc->mc_regs.t));
+	memcpy(r->s, mc->mc_regs.s, sizeof(mc->mc_regs.s));
+	memcpy(r->a, mc->mc_regs.a, sizeof(mc->mc_regs.a));
+	r->ra = mc->mc_regs.ra;
+	r->sp = mc->mc_regs.sp;
+	r->sp = mc->mc_regs.fp;
+	r->tp = mc->mc_regs.tp;
+	r->era = mc->mc_regs.era;
+	r->estat = mc->mc_regs.estat;
 }
 
 void
