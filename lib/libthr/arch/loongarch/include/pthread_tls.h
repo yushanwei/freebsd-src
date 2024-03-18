@@ -28,8 +28,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _ARCH_RISCV_PTHREAD_TLS_H
-#define	_ARCH_RISCV_PTHREAD_TLS_H
+#ifndef _ARCH_LOONGARCH_PTHREAD_TLS_H
+#define	_ARCH_LOONGARCH_PTHREAD_TLS_H
 
 static __inline uintptr_t
 _get_static_tls_base(struct pthread *thr, size_t offset)
