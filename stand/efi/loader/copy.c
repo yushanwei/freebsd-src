@@ -182,7 +182,7 @@ out:
 #endif
 
 #if defined(__aarch64__) || defined(__amd64__) || defined(__arm__) || \
-    defined(__riscv) || defined(__i386__)
+    defined(__riscv) || defined(__i386__) || defined(__loongarch__)
 #define	EFI_STAGING_2M_ALIGN	1
 #else
 #define	EFI_STAGING_2M_ALIGN	0

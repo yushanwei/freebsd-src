@@ -50,7 +50,7 @@ Revision History
 #define BAD_POINTER         0xFBFBFBFBFBFBFBFB
 #define MAX_ADDRESS         0xFFFFFFFFFFFFFFFF
 
-#define BREAKPOINT()  __break(0)
+#define BREAKPOINT()  while (TRUE);
 
 //
 // Pointers must be aligned to these address to function
@@ -81,11 +81,7 @@ Revision History
 //
 
 #ifndef EFIAPI                  // Forces EFI calling conventions reguardless of compiler options 
-    #ifdef _MSC_EXTENSIONS
-        #define EFIAPI __cdecl  // Force C calling convention for Microsoft C compiler 
-    #else
-        #define EFIAPI          // Substitute expresion to force C calling convention 
-    #endif
+	#define EFIAPI          // Substitute expresion to force C calling convention 
 #endif
 
 #define BOOTSERVICE
@@ -94,7 +90,7 @@ Revision History
 
 #define RUNTIME_CODE(a)         alloc_text("rtcode", a)
 #define BEGIN_RUNTIME_DATA()    data_seg("rtdata")
-#define END_RUNTIME_DATA()      data_seg()
+#define END_RUNTIME_DATA()      data_seg("")
 
 #define VOLATILE    volatile
 
@@ -117,7 +113,23 @@ void __mfa (void);
 // one big module.
 //
 
-#define EFI_DRIVER_ENTRY_POINT(InitFunction)
+#define EFI_DRIVER_ENTRY_POINT(InitFunction)    \
+    UINTN                                       \
+    InitializeDriver (                          \
+        VOID    *ImageHandle,                   \
+        VOID    *SystemTable                    \
+        )                                       \
+    {                                           \
+        return InitFunction(ImageHandle,        \
+                SystemTable);                   \
+    }                                           \
+                                                \
+    EFI_STATUS efi_main(                        \
+        EFI_HANDLE image,                       \
+        EFI_SYSTEM_TABLE *systab                \
+        ) __attribute__((weak,                  \
+                alias ("InitializeDriver")));
+
 
 #define LOAD_INTERNAL_DRIVER(_if, type, name, entry)    \
             (_if)->LoadInternal(type, name, entry)
@@ -138,3 +150,6 @@ void __mfa (void);
 #define INTERFACE_DECL(x) typedef struct x
 #endif
 #endif
+
+#define uefi_call_wrapper(func, va_num, ...) func(__VA_ARGS__)
+#define EFI_FUNCTION

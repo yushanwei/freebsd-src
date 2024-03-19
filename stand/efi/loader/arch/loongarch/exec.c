@@ -78,12 +78,12 @@ __elfN(exec)(struct preloaded_file *fp)
 	panic("exec returned");
 }
 
-static struct file_format riscv_elf = {
+static struct file_format loongarch_elf = {
 	__elfN(loadfile),
 	__elfN(exec)
 };
 
 struct file_format *file_formats[] = {
-	&riscv_elf,
+	&loongarch_elf,
 	NULL
 };
