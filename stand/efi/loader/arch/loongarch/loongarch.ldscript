@@ -1,5 +1,5 @@
-OUTPUT_FORMAT("elf64-littleriscv", "elf64-littleriscv", "elf64-littleriscv")
-OUTPUT_ARCH(riscv64)
+OUTPUT_FORMAT("elf64-loongarch", "elf64-loongarch", "elf64-loongarch")
+OUTPUT_ARCH(loongarch64)
 ENTRY(_start)
 SECTIONS
 {
@@ -33,6 +33,17 @@ SECTIONS
     *(COMMON)
     . = ALIGN(16);
     __bss_end = .;
+  }
+  . = ALIGN(16);
+  set_Xcommand_set	: {
+    __start_set_Xcommand_set = .;
+    *(set_Xcommand_set)
+    __stop_set_Xcommand_set = .;
+  }
+  set_Xficl_compile_set	: {
+    __start_set_Xficl_compile_set = .;
+    *(set_Xficl_compile_set)
+    __stop_set_Xficl_compile_set = .;
   }
   . = ALIGN(16);
   .sdata	: {

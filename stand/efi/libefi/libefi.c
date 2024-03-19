@@ -38,12 +38,18 @@ void *
 efi_get_table(EFI_GUID *tbl)
 {
 	EFI_GUID *id;
+	EFI_GUID hobList = HOB_LIST_GUID;
+	void *ret;
 	int i;
 
 	for (i = 0; i < ST->NumberOfTableEntries; i++) {
 		id = &ST->ConfigurationTable[i].VendorGuid;
 		if (!memcmp(id, tbl, sizeof(EFI_GUID)))
 			return (ST->ConfigurationTable[i].VendorTable);
+	}
+	if (!memcmp(id, &hobList, sizeof(EFI_GUID))) {
+		if ((ret = GetFdtHob((EFI_HOB_GENERIC_HEADER*)ST->ConfigurationTable[i].VendorTable)))
+		return ret;
 	}
 	return (NULL);
 }

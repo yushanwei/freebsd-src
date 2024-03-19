@@ -28,6 +28,9 @@ SRCS+=	metadata.c
 .elif ${MACHINE_CPUARCH} == "riscv"
 SRCS+=	load_elf64.c reloc_elf64.c
 SRCS+=	metadata.c
+.elif ${MACHINE_CPUARCH} == "loongarch"
+SRCS+=	load_elf64.c reloc_elf64.c
+SRCS+=	metadata.c
 .endif
 
 .if ${LOADER_DISK_SUPPORT:Uyes} == "yes"

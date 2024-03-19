@@ -48,7 +48,7 @@ int
 __elfN(reloc)(struct elf_file *ef, symaddr_fn *symaddr, const void *reldata,
     int reltype, Elf_Addr relbase, Elf_Addr dataaddr, void *data, size_t len)
 {
-#if (defined(__aarch64__) || defined(__amd64__) || defined(__i386__)) && \
+#if (defined(__aarch64__) || defined(__amd64__) || defined(__i386__) || defined(__loongarch__)) && \
     __ELF_WORD_SIZE == 64
 	Elf64_Addr *where, val;
 	Elf_Addr addend, addr;
@@ -102,6 +102,9 @@ __elfN(reloc)(struct elf_file *ef, symaddr_fn *symaddr, const void *reldata,
 
 #define	RELOC_RELATIVE		R_X86_64_RELATIVE
 #define	RELOC_IRELATIVE		R_X86_64_IRELATIVE
+#elif defined(__loongarch__)
+#define RELOC_RELATIVE          R_LARCH_RELATIVE
+#define RELOC_IRELATIVE         R_LARCH_IRELATIVE
 #endif
 
 	switch (rtype) {
@@ -189,7 +192,7 @@ __elfN(reloc)(struct elf_file *ef, symaddr_fn *symaddr, const void *reldata,
 	}
 
 	return (0);
-#elif defined(__powerpc__) || defined(__riscv)
+#elif defined(__powerpc__) || defined(__riscv) || defined(__loongarch__)
 	Elf_Size w;
 	const Elf_Rela *rela;
 
@@ -203,6 +206,8 @@ __elfN(reloc)(struct elf_file *ef, symaddr_fn *symaddr, const void *reldata,
 			case R_PPC_RELATIVE:
 #elif defined(__riscv)
 			case R_RISCV_RELATIVE:
+#elif defined(__loongarch__)
+			case R_LARCH_RELATIVE:
 #endif
 				w = relbase + rela->r_addend;
 				bcopy(&w, (u_char *)data + (relbase +

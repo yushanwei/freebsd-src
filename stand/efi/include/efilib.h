@@ -154,5 +154,6 @@ bool efi_guid_to_name(EFI_GUID *, char **);
 
 /* efipart.c */
 int	efipart_inithandles(void);
+void *GetFdtHob(EFI_HOB_GENERIC_HEADER *);
 
 #endif	/* _LOADER_EFILIB_H */

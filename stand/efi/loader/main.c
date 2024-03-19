@@ -1005,7 +1005,7 @@ main(int argc, CHAR16 *argv[])
 	 */
 	setenv("console", "efi", 1);
 	uhowto = parse_uefi_con_out();
-#if defined(__riscv)
+#if defined(__riscv) || defined(__loongarch__)
 	/*
 	 * This workaround likely is papering over a real issue
 	 */
