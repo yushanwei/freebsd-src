@@ -44,7 +44,7 @@ breakpoint(void)
 
 #ifdef _KERNEL
 
-#include <machine/riscvreg.h>
+#include <machine/loongarchreg.h>
 
 static __inline register_t
 intr_disable(void)
@@ -118,9 +118,9 @@ extern int64_t icache_line_size;
 #define	cpu_icache_sync_range(a, s)
 #define	cpu_icache_sync_range_checked(a, s)
 
-#define	cpufunc_nullop()		riscv_nullop()
+#define	cpufunc_nullop()		loongarch_nullop()
 
-void riscv_nullop(void);
+void loongarch_nullop(void);
 
 #endif	/* _KERNEL */
 #endif	/* _MACHINE_CPUFUNC_H_ */

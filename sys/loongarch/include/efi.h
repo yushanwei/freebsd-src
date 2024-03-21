@@ -54,5 +54,4 @@ struct efirt_callinfo {
 	register_t	ec_arg4;
 	register_t	ec_arg5;
 };
-
 #endif /* __MACHINE_INCLUDE_EFI_H_ */

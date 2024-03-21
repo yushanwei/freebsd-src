@@ -45,7 +45,7 @@
 static __inline void
 _tcb_set(struct tcb *tcb)
 {
-	__asm __volatile("addi tp, %0, %1" :: "r" (tcb), "I" (TLS_TCB_SIZE));
+	__asm __volatile("addi.d $tp, %0, %1" :: "r" (tcb), "I" (TLS_TCB_SIZE));
 }
 
 static __inline struct tcb *
@@ -53,7 +53,7 @@ _tcb_get(void)
 {
 	struct tcb *tcb;
 
-	__asm __volatile("addi %0, tp, %1" : "=r" (tcb) : "I" (-TLS_TCB_SIZE));
+	__asm __volatile("addi.d %0, $tp, %1" : "=r" (tcb) : "I" (-TLS_TCB_SIZE));
 	return (tcb);
 }
 

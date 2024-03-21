@@ -36,15 +36,15 @@
 #define	_MACHINE_UCONTEXT_H_
 
 struct gpregs {
-	__register_t	gp_ra;
-	__register_t	gp_sp;
-	__register_t	gp_gp;
-	__register_t	gp_tp;
-	__register_t	gp_t[7];
-	__register_t	gp_s[12];
-	__register_t	gp_a[8];
-	__register_t	gp_sepc;
-	__register_t	gp_sstatus;
+	__uint64_t	gp_ra;
+	__uint64_t	gp_sp;
+	__uint64_t	gp_fp;
+	__uint64_t	gp_tp;
+	__uint64_t	gp_a[8];
+	__uint64_t	gp_t[10];
+	__uint64_t	gp_s[9];
+	__uint64_t	gp_sepc;
+	__uint64_t	gp_sstatus;
 };
 
 struct fpregs {
@@ -54,15 +54,42 @@ struct fpregs {
 	int		pad;
 };
 
-struct __mcontext {
+typedef struct {
+	int		mc_flags;
 	struct gpregs	mc_gpregs;
 	struct fpregs	mc_fpregs;
-	int		mc_flags;
 #define	_MC_FP_VALID	0x1		/* Set when mc_fpregs has valid data */
 	int		mc_pad;
 	__uint64_t	mc_spare[8];	/* Space for expansion */
-};
+}mcontext_t;
 
-typedef struct __mcontext mcontext_t;
+/* Userlevel context.
+typedef struct {
+	int		uc_flags;
+	struct ucontext_t *uc_link;
+	struct gpregs	mc_gpregs;
+	struct fpregs	mc_fpregs;
+  mcontext_t uc_mcontext;
+}ucontext_t;
+  unsigned long int __uc_flags;
+  struct ucontext_t *uc_link;
+  stack_t uc_stack;
+  sigset_t uc_sigmask;
+
+ Structure describing a signal stack.
+typedef struct
+  {
+    void *ss_sp;
+    int ss_flags;
+    size_t ss_size;
+  } stack_t;
+
+#define _SIGSET_NWORDS (1024 / (8 * sizeof (unsigned long int)))
+typedef struct
+{
+  unsigned long int __val[_SIGSET_NWORDS];
+} __sigset_t;
+
+*/
 
 #endif	/* !_MACHINE_UCONTEXT_H_ */

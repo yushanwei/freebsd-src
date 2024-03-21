@@ -27,9 +27,9 @@
 #ifndef _MACHINE_PMC_MDEP_H_
 #define	_MACHINE_PMC_MDEP_H_
 
-#define	PMC_MDEP_CLASS_INDEX_RISCV	1
+#define	PMC_MDEP_CLASS_INDEX_LOONGARCH
 /*
- * On the RISC-V platform we don't support any PMCs yet.
+ * On the platform we don't support any PMCs yet.
  */
 #include <dev/hwpmc/hwpmc_riscv.h>
 
@@ -38,8 +38,13 @@ union pmc_md_op_pmcallocate {
 };
 
 /* Logging */
-#define	PMCLOG_READADDR		PMCLOG_READ64
-#define	PMCLOG_EMITADDR		PMCLOG_EMIT64
+#if defined(__loongarch_lp64)
+#define PMCLOG_READADDR         PMCLOG_READ64
+#define PMCLOG_EMITADDR         PMCLOG_EMIT64
+#else
+#define PMCLOG_READADDR         PMCLOG_READ32
+#define PMCLOG_EMITADDR         PMCLOG_EMIT32
+#endif
 
 #ifdef	_KERNEL
 union pmc_md_pmc {
