@@ -42,10 +42,10 @@
 #define __PCI_REROUTE_INTERRUPT
 
 #ifndef MACHINE
-#define	MACHINE		"riscv"
+#define	MACHINE		"loongarch"
 #endif
 #ifndef MACHINE_ARCH
-#define	MACHINE_ARCH	"riscv64"
+#define	MACHINE_ARCH	"loongarch64"
 #endif
 
 #ifdef SMP
@@ -98,9 +98,6 @@
 
 #define	atop(x)			((unsigned long)(x) >> PAGE_SHIFT)
 #define	ptoa(x)			((unsigned long)(x) << PAGE_SHIFT)
-
-#define	riscv_btop(x)		((unsigned long)(x) >> PAGE_SHIFT)
-#define	riscv_ptob(x)		((unsigned long)(x) << PAGE_SHIFT)
 
 #define	pgtok(x)		((unsigned long)(x) * (PAGE_SIZE / 1024))
 

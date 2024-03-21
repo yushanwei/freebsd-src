@@ -35,12 +35,31 @@
 #ifndef _MACHINE_ASM_H_
 #define	_MACHINE_ASM_H_
 
+#include <machine/abi.h>
+#include <machine/regdef.h>
+
 #undef __FBSDID
 #if !defined(lint) && !defined(STRIP_FBSDID)
 #define	__FBSDID(s)	.ident s
 #else
 #define	__FBSDID(s)	/* nothing */
 #endif /* not lint and not STRIP_FBSDID */
+
+/* LoongArch pref instruction. */
+#ifdef CONFIG_CPU_HAS_PREFETCH
+ 
+#define PREF(hint, addr, offs)                          \
+                preld   hint, addr, offs;               \
+ 
+#define PREFX(hint, addr, index)                        \
+                preldx  hint, addr, index;              \
+ 
+#else /* !CONFIG_CPU_HAS_PREFETCH */
+ 
+#define PREF(hint, addr, offs)
+#define PREFX(hint, addr, index)
+ 
+#endif /* !CONFIG_CPU_HAS_PREFETCH */
 
 #define	_C_LABEL(x)	x
 
