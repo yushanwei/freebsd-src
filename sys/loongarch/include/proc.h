@@ -40,6 +40,11 @@ struct mdproc {
 	int dummy;
 };
 
-#define	KINFO_PROC_SIZE	1088
+#ifdef __loongarch_lp64
+#define KINFO_PROC_SIZE 1088
+#define KINFO_PROC32_SIZE 816
+#else
+#define KINFO_PROC_SIZE 816
+#endif
 
 #endif /* !_MACHINE_PROC_H_ */

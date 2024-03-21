@@ -34,7 +34,12 @@
 #include <sys/elf32.h>	/* Definitions common to all 32 bit architectures. */
 #include <sys/elf64.h>	/* Definitions common to all 64 bit architectures. */
 
-#define	__ELF_WORD_SIZE	64	/* Used by <sys/elf_generic.h> */
+/* Used by <sys/elf_generic.h> */
+#ifndef __loongarch_lp64
+#define	__ELF_WORD_SIZE	32
+#else
+#define	__ELF_WORD_SIZE	64
+#endif
 #include <sys/elf_generic.h>
 
 /*
@@ -59,28 +64,34 @@ typedef struct {	/* Auxiliary vector entry on initial stack */
 
 __ElfType(Auxinfo);
 
-#define	ELF_ARCH	EM_RISCV
+#define ELF_ARCH        EM_LOONGARCH
+#define	ELF_ARCH32	EM_LOONGARCH
 
 #define	ELF_MACHINE_OK(x) ((x) == (ELF_ARCH))
 
 /* Define "machine" characteristics */
-#define	ELF_TARG_CLASS	ELFCLASS64
-#define	ELF_TARG_DATA	ELFDATA2LSB
-#define	ELF_TARG_MACH	EM_RISCV
-#define	ELF_TARG_VER	1
+#define ELF_TARG_CLASS  ELFCLASS64
+#define ELF_TARG_DATA   ELFDATA2LSB
+#define ELF_TARG_MACH   EM_LOONGARCH
+#define ELF_TARG_VER    1
 
 /* TODO: set correct value */
 #define	ET_DYN_LOAD_ADDR 0x100000
 
 /* Flags passed in AT_HWCAP */
-#define	HWCAP_ISA_BIT(c)	(1 << ((c) - 'a'))
-#define	HWCAP_ISA_I		HWCAP_ISA_BIT('i')
-#define	HWCAP_ISA_M		HWCAP_ISA_BIT('m')
-#define	HWCAP_ISA_A		HWCAP_ISA_BIT('a')
-#define	HWCAP_ISA_F		HWCAP_ISA_BIT('f')
-#define	HWCAP_ISA_D		HWCAP_ISA_BIT('d')
-#define	HWCAP_ISA_C		HWCAP_ISA_BIT('c')
-#define	HWCAP_ISA_G		\
-    (HWCAP_ISA_I | HWCAP_ISA_M | HWCAP_ISA_A | HWCAP_ISA_F | HWCAP_ISA_D)
+#define HWCAP_LOONGARCH_CPUCFG          (1 << 0)
+#define HWCAP_LOONGARCH_LAM             (1 << 1)
+#define HWCAP_LOONGARCH_UAL             (1 << 2)
+#define HWCAP_LOONGARCH_FPU             (1 << 3)
+#define HWCAP_LOONGARCH_LSX             (1 << 4)
+#define HWCAP_LOONGARCH_LASX            (1 << 5)
+#define HWCAP_LOONGARCH_CRC32           (1 << 6)
+#define HWCAP_LOONGARCH_COMPLEX         (1 << 7)
+#define HWCAP_LOONGARCH_CRYPTO          (1 << 8)
+#define HWCAP_LOONGARCH_LVZ             (1 << 9)
+#define HWCAP_LOONGARCH_LBT_X86         (1 << 10)
+#define HWCAP_LOONGARCH_LBT_ARM         (1 << 11)
+#define HWCAP_LOONGARCH_LBT_MIPS        (1 << 12)
+#define HWCAP_LOONGARCH_PTW             (1 << 13)
 
 #endif /* !_MACHINE_ELF_H_ */

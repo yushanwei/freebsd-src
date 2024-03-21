@@ -71,7 +71,6 @@
 /*
  * Open-source marchid values.
  *
- * https://github.com/riscv/riscv-isa-manual/blob/master/marchid.md
  */
 #define	MARCHID_UCB_ROCKET	MARCHID_OPENSOURCE(1)
 #define	MARCHID_UCB_BOOM	MARCHID_OPENSOURCE(2)

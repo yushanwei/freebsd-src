@@ -40,11 +40,11 @@
 struct reg {
 	__uint64_t	ra;		/* return address */
 	__uint64_t	sp;		/* stack pointer */
-	__uint64_t	gp;		/* global pointer */
+	__uint64_t	fp;
 	__uint64_t	tp;		/* thread pointer */
-	__uint64_t	t[7];		/* temporaries */
-	__uint64_t	s[12];		/* saved registers */
 	__uint64_t	a[8];		/* function arguments */
+	__uint64_t	t[10];		/* temporaries */
+	__uint64_t	s[9];		/* saved registers */
 	__uint64_t	sepc;		/* exception program counter */
 	__uint64_t	sstatus;	/* status register */
 };
