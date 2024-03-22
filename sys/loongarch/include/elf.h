@@ -28,13 +28,18 @@
 #define	_MACHINE_ELF_H_
 
 /*
- * ELF definitions for the LoongArch architecture.
+ * ELF definitions for the RISC-V architecture.
  */
 
 #include <sys/elf32.h>	/* Definitions common to all 32 bit architectures. */
 #include <sys/elf64.h>	/* Definitions common to all 64 bit architectures. */
 
-#define	__ELF_WORD_SIZE	64	/* Used by <sys/elf_generic.h> */
+/* Used by <sys/elf_generic.h> */
+#ifndef __loongarch_lp64
+#define	__ELF_WORD_SIZE	32
+#else
+#define	__ELF_WORD_SIZE	64
+#endif
 #include <sys/elf_generic.h>
 
 /*
@@ -59,16 +64,16 @@ typedef struct {	/* Auxiliary vector entry on initial stack */
 
 __ElfType(Auxinfo);
 
-#define ELF_DATA        ELFDATA2LSB
-#define	ELF_ARCH	EM_LOONGARCH
+#define ELF_ARCH        EM_LOONGARCH
+#define	ELF_ARCH32	EM_LOONGARCH
 
 #define	ELF_MACHINE_OK(x) ((x) == (ELF_ARCH))
 
 /* Define "machine" characteristics */
-#define	ELF_TARG_CLASS	ELFCLASS64
-#define	ELF_TARG_DATA	ELFDATA2LSB
-#define	ELF_TARG_MACH	EM_LOONGARCH
-#define	ELF_TARG_VER	1
+#define ELF_TARG_CLASS  ELFCLASS64
+#define ELF_TARG_DATA   ELFDATA2LSB
+#define ELF_TARG_MACH   EM_LOONGARCH
+#define ELF_TARG_VER    1
 
 /* TODO: set correct value */
 #define	ET_DYN_LOAD_ADDR 0x100000

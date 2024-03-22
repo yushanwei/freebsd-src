@@ -1,8 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
- * Copyright (c) 1987, 1991 Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 2001 David E. O'Brien
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,16 +24,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)endian.h	7.8 (Berkeley) 4/3/91
+ * $NetBSD: endian.h,v 1.7 1999/08/21 05:53:51 simonb Exp $
  */
 
 #ifndef _MACHINE_ENDIAN_H_
 #define	_MACHINE_ENDIAN_H_
 
-#ifndef	__ASSEMBLER__
 #include <sys/_types.h>
-#endif
 #include <sys/_endian.h>
 
 #endif /* !_MACHINE_ENDIAN_H_ */

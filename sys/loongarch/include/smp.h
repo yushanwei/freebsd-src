@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2016 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -32,30 +32,23 @@
  * SUCH DAMAGE.
  */
 
-#ifndef	_MACHINE_REG_H_
-#define	_MACHINE_REG_H_
+#ifndef	_MACHINE_SMP_H_
+#define	_MACHINE_SMP_H_
 
-#include <sys/_types.h>
+#include <machine/pcb.h>
 
-struct reg {
-	__uint64_t	ra;		/* return address */
-	__uint64_t	sp;		/* stack pointer */
-	__uint64_t	fp;
-	__uint64_t	tp;		/* thread pointer */
-	__uint64_t	a[8];		/* function arguments */
-	__uint64_t	t[10];		/* temporaries */
-	__uint64_t	s[9];		/* saved registers */
-	__uint64_t	sepc;		/* exception program counter */
-	__uint64_t	sstatus;	/* status register */
+enum {
+	IPI_AST,
+	IPI_PREEMPT,
+	IPI_RENDEZVOUS,
+	IPI_STOP,
+	IPI_STOP_HARD,
+	IPI_HARDCLOCK,
+	INTR_IPI_COUNT
 };
 
-struct fpreg {
-	__uint64_t	fp_x[32][2];	/* Floating point registers */
-	__uint64_t	fp_fcsr;	/* Floating point control reg */
-};
+void ipi_all_but_self(u_int ipi);
+void ipi_cpu(int cpu, u_int ipi);
+void ipi_selected(cpuset_t cpus, u_int ipi);
 
-struct dbreg {
-	int dummy;
-};
-
-#endif /* !_MACHINE_REG_H_ */
+#endif /* !_MACHINE_SMP_H_ */

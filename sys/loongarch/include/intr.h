@@ -32,30 +32,28 @@
  * SUCH DAMAGE.
  */
 
-#ifndef	_MACHINE_REG_H_
-#define	_MACHINE_REG_H_
+#ifndef	_MACHINE_INTR_MACHDEP_H_
+#define	_MACHINE_INTR_MACHDEP_H_
 
-#include <sys/_types.h>
+#ifndef	NIRQ
+#define	NIRQ			1024
+#endif
 
-struct reg {
-	__uint64_t	ra;		/* return address */
-	__uint64_t	sp;		/* stack pointer */
-	__uint64_t	fp;
-	__uint64_t	tp;		/* thread pointer */
-	__uint64_t	a[8];		/* function arguments */
-	__uint64_t	t[10];		/* temporaries */
-	__uint64_t	s[9];		/* saved registers */
-	__uint64_t	sepc;		/* exception program counter */
-	__uint64_t	sstatus;	/* status register */
+#include <sys/intr.h>
+
+enum {
+	IRQ_SOFTWARE_USER,
+	IRQ_SOFTWARE_SUPERVISOR,
+	IRQ_SOFTWARE_HYPERVISOR,
+	IRQ_SOFTWARE_MACHINE,
+	IRQ_TIMER_USER,
+	IRQ_TIMER_SUPERVISOR,
+	IRQ_TIMER_HYPERVISOR,
+	IRQ_TIMER_MACHINE,
+	IRQ_EXTERNAL_USER,
+	IRQ_EXTERNAL_SUPERVISOR,
+	IRQ_EXTERNAL_HYPERVISOR,
+	IRQ_EXTERNAL_MACHINE,
 };
 
-struct fpreg {
-	__uint64_t	fp_x[32][2];	/* Floating point registers */
-	__uint64_t	fp_fcsr;	/* Floating point control reg */
-};
-
-struct dbreg {
-	int dummy;
-};
-
-#endif /* !_MACHINE_REG_H_ */
+#endif /* !_MACHINE_INTR_MACHDEP_H_ */

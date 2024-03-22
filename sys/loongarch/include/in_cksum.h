@@ -1,7 +1,6 @@
 /*-
- * Copyright (c) 2002 Mike Barcroft <mike@FreeBSD.org>
- * Copyright (c) 1990, 1993
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 1990 The Regents of the University of California.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,40 +25,24 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	from tahoe:	in_cksum.c	1.2	86/01/05
+ *	from: Id: in_cksum.c,v 1.8 1995/12/03 18:35:19 bde Exp
  */
 
-#ifndef _MACHINE__TYPES_H_
-#define	_MACHINE__TYPES_H_
+#ifndef _MACHINE_IN_CKSUM_H_
+#define	_MACHINE_IN_CKSUM_H_	1
 
-#ifndef _SYS__TYPES_H_
-#error do not include this header, use sys/_types.h
+#ifdef _KERNEL
+#define	in_cksum(m, len)	in_cksum_skip(m, len, 0)
+u_short in_addword(u_short sum, u_short b);
+u_short in_cksum_skip(struct mbuf *m, int len, int skip);
+u_int do_cksum(const void *, int);
+#if defined(IPVERSION) && (IPVERSION == 4)
+u_int in_cksum_hdr(const struct ip *);
 #endif
 
-/*
- * Standard type definitions.
- */
-typedef	__int32_t	__clock_t;		/* clock()... */
-typedef	__int64_t	__critical_t;
-#ifndef _STANDALONE
-typedef	double		__double_t;
-typedef	float		__float_t;
-#endif
-typedef	__int32_t	__int_fast8_t;
-typedef	__int32_t	__int_fast16_t;
-typedef	__int32_t	__int_fast32_t;
-typedef	__int64_t	__int_fast64_t;
-typedef	__int64_t	__register_t;
-typedef	__int64_t	__segsz_t;		/* segment size (in pages) */
-typedef	__int64_t	__time_t;		/* time()... */
-typedef	__uint32_t	__uint_fast8_t;
-typedef	__uint32_t	__uint_fast16_t;
-typedef	__uint32_t	__uint_fast32_t;
-typedef	__uint64_t	__uint_fast64_t;
-typedef	__uint64_t	__u_register_t;
-typedef	__uint64_t	__vm_paddr_t;
-typedef	int		___wchar_t;
+u_short in_pseudo(u_int sum, u_int b, u_int c);
 
-#define	__WCHAR_MIN	__INT_MIN	/* min value for a wchar_t */
-#define	__WCHAR_MAX	__INT_MAX	/* max value for a wchar_t */
-
-#endif /* !_MACHINE__TYPES_H_ */
+#endif /* _KERNEL */
+#endif /* _MACHINE_IN_CKSUM_H_ */

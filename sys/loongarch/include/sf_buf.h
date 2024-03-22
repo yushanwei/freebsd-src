@@ -1,14 +1,6 @@
 /*-
- * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2003, 2005 Alan L. Cox <alc@cs.rice.edu>
  * All rights reserved.
- *
- * Portions of this software were developed by SRI International and the
- * University of Cambridge Computer Laboratory under DARPA/AFRL contract
- * FA8750-10-C-0237 ("CTSRD"), as part of the DARPA CRASH research programme.
- *
- * Portions of this software were developed by the University of Cambridge
- * Computer Laboratory as part of the CTSRD Project, with support from the
- * UK Higher Education Innovation Fund (HEIF).
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,30 +24,26 @@
  * SUCH DAMAGE.
  */
 
-#ifndef	_MACHINE_REG_H_
-#define	_MACHINE_REG_H_
+#ifndef _MACHINE_SF_BUF_H_
+#define	_MACHINE_SF_BUF_H_
 
-#include <sys/_types.h>
+/*
+ * On this machine, the only purpose for which sf_buf is used is to implement
+ * an opaque pointer required by the machine-independent parts of the kernel.
+ * That pointer references the vm_page that is "mapped" by the sf_buf.  The
+ * actual mapping is provided by the direct virtual-to-physical mapping.  
+ */
+static inline vm_offset_t
+sf_buf_kva(struct sf_buf *sf)
+{
 
-struct reg {
-	__uint64_t	ra;		/* return address */
-	__uint64_t	sp;		/* stack pointer */
-	__uint64_t	fp;
-	__uint64_t	tp;		/* thread pointer */
-	__uint64_t	a[8];		/* function arguments */
-	__uint64_t	t[10];		/* temporaries */
-	__uint64_t	s[9];		/* saved registers */
-	__uint64_t	sepc;		/* exception program counter */
-	__uint64_t	sstatus;	/* status register */
-};
+	return (PHYS_TO_DMAP(VM_PAGE_TO_PHYS((vm_page_t)sf)));
+}
 
-struct fpreg {
-	__uint64_t	fp_x[32][2];	/* Floating point registers */
-	__uint64_t	fp_fcsr;	/* Floating point control reg */
-};
+static inline vm_page_t
+sf_buf_page(struct sf_buf *sf)
+{
 
-struct dbreg {
-	int dummy;
-};
-
-#endif /* !_MACHINE_REG_H_ */
+	return ((vm_page_t)sf);
+}
+#endif /* !_MACHINE_SF_BUF_H_ */

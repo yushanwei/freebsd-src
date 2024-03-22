@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2016 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -32,30 +32,38 @@
  * SUCH DAMAGE.
  */
 
-#ifndef	_MACHINE_REG_H_
-#define	_MACHINE_REG_H_
+#ifndef _MACHINE_STACK_H_
+#define	_MACHINE_STACK_H_
 
-#include <sys/_types.h>
+#define	INKERNEL(va)	((va) >= VM_MIN_KERNEL_ADDRESS && \
+			 (va) <= VM_MAX_KERNEL_ADDRESS)
 
-struct reg {
-	__uint64_t	ra;		/* return address */
-	__uint64_t	sp;		/* stack pointer */
-	__uint64_t	fp;
-	__uint64_t	tp;		/* thread pointer */
-	__uint64_t	a[8];		/* function arguments */
-	__uint64_t	t[10];		/* temporaries */
-	__uint64_t	s[9];		/* saved registers */
-	__uint64_t	sepc;		/* exception program counter */
-	__uint64_t	sstatus;	/* status register */
+struct unwind_state {
+	uintptr_t fp;
+	uintptr_t sp;
+	uintptr_t pc;
 };
 
-struct fpreg {
-	__uint64_t	fp_x[32][2];	/* Floating point registers */
-	__uint64_t	fp_fcsr;	/* Floating point control reg */
-};
+bool unwind_frame(struct thread *, struct unwind_state *);
 
-struct dbreg {
-	int dummy;
-};
+#ifdef _SYS_PROC_H_
 
-#endif /* !_MACHINE_REG_H_ */
+#include <machine/pcb.h>
+
+/* Get the current kernel thread stack usage. */
+#define	GET_STACK_USAGE(total, used) do {				\
+	struct thread *td = curthread;					\
+	(total) = td->td_kstack_pages * PAGE_SIZE - sizeof(struct pcb);	\
+	(used) = td->td_kstack + (total) - (vm_offset_t)&td;		\
+} while (0)
+
+static __inline bool
+kstack_contains(struct thread *td, vm_offset_t va, size_t len)
+{
+	return (va >= td->td_kstack && va + len >= va &&
+	    va + len <= td->td_kstack + td->td_kstack_pages * PAGE_SIZE -
+	    sizeof(struct pcb));
+}
+#endif	/* _SYS_PROC_H_ */
+
+#endif /* !_MACHINE_STACK_H_ */

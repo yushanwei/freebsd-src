@@ -1,18 +1,12 @@
 /*-
- * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause
  *
- * Portions of this software were developed by SRI International and the
- * University of Cambridge Computer Laboratory under DARPA/AFRL contract
- * FA8750-10-C-0237 ("CTSRD"), as part of the DARPA CRASH research programme.
- *
- * Portions of this software were developed by the University of Cambridge
- * Computer Laboratory as part of the CTSRD Project, with support from the
- * UK Higher Education Innovation Fund (HEIF).
+ * Copyright (c) 2021 Mitchell Horne <mhorne@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
@@ -32,30 +26,63 @@
  * SUCH DAMAGE.
  */
 
-#ifndef	_MACHINE_REG_H_
-#define	_MACHINE_REG_H_
+#ifndef _MACHINE_GDB_MACHDEP_H_
+#define	_MACHINE_GDB_MACHDEP_H_
 
-#include <sys/_types.h>
+#define	GDB_BUFSZ		4096
+#define	GDB_NREGS		33
+#define	GDB_REG_ZERO		0
+#define	GDB_REG_RA		1
+#define	GDB_REG_SP		2
+#define	GDB_REG_GP		3
+#define	GDB_REG_TP		4
+#define	GDB_REG_T0		5
+#define	GDB_REG_FP		8
+#define	GDB_REG_S1		9
+#define	GDB_REG_A0		10
+#define	GDB_REG_S2		18
+#define	GDB_REG_T3		28
+#define	GDB_REG_PC		32
+#define	GDB_REG_CSR_BASE	65
+#define	GDB_REG_SSTATUS		(GDB_REG_CSR_BASE + 0x100)
+#define	GDB_REG_SCAUSE		(GDB_REG_CSR_BASE + 0x142)
+#define	GDB_REG_STVAL		(GDB_REG_CSR_BASE + 0x143)
+_Static_assert(GDB_BUFSZ >= (GDB_NREGS * 8), "buffer fits 'g' regs");
 
-struct reg {
-	__uint64_t	ra;		/* return address */
-	__uint64_t	sp;		/* stack pointer */
-	__uint64_t	fp;
-	__uint64_t	tp;		/* thread pointer */
-	__uint64_t	a[8];		/* function arguments */
-	__uint64_t	t[10];		/* temporaries */
-	__uint64_t	s[9];		/* saved registers */
-	__uint64_t	sepc;		/* exception program counter */
-	__uint64_t	sstatus;	/* status register */
-};
+static __inline size_t
+gdb_cpu_regsz(int regnum __unused)
+{
 
-struct fpreg {
-	__uint64_t	fp_x[32][2];	/* Floating point registers */
-	__uint64_t	fp_fcsr;	/* Floating point control reg */
-};
+	return (8);
+}
 
-struct dbreg {
-	int dummy;
-};
+static __inline int
+gdb_cpu_query(void)
+{
+	return (0);
+}
 
-#endif /* !_MACHINE_REG_H_ */
+static __inline void *
+gdb_begin_write(void)
+{
+
+	return (NULL);
+}
+
+static __inline void
+gdb_end_write(void *arg __unused)
+{
+
+}
+
+static __inline void
+gdb_cpu_stop_reason(int type __unused, int code __unused)
+{
+
+}
+
+void	*gdb_cpu_getreg(int, size_t *);
+void	 gdb_cpu_setreg(int, void *);
+int	 gdb_cpu_signal(int, int);
+
+#endif /* !_MACHINE_GDB_MACHDEP_H_ */

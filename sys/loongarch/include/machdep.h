@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2017 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -32,30 +32,18 @@
  * SUCH DAMAGE.
  */
 
-#ifndef	_MACHINE_REG_H_
-#define	_MACHINE_REG_H_
+#ifndef _MACHINE_MACHDEP_H_
+#define	_MACHINE_MACHDEP_H_
 
-#include <sys/_types.h>
-
-struct reg {
-	__uint64_t	ra;		/* return address */
-	__uint64_t	sp;		/* stack pointer */
-	__uint64_t	fp;
-	__uint64_t	tp;		/* thread pointer */
-	__uint64_t	a[8];		/* function arguments */
-	__uint64_t	t[10];		/* temporaries */
-	__uint64_t	s[9];		/* saved registers */
-	__uint64_t	sepc;		/* exception program counter */
-	__uint64_t	sstatus;	/* status register */
+struct riscv_bootparams {
+	vm_offset_t	kern_l1pt;	/* Kernel L1 base */
+	vm_offset_t	kern_phys;	/* Kernel base (physical) addr */
+	vm_offset_t	kern_stack;
+	vm_offset_t	dtbp_virt;	/* Device tree blob virtual addr */
+	vm_offset_t	dtbp_phys;	/* Device tree blob physical addr */
+	vm_offset_t	modulep;	/* loader(8) metadata */
 };
 
-struct fpreg {
-	__uint64_t	fp_x[32][2];	/* Floating point registers */
-	__uint64_t	fp_fcsr;	/* Floating point control reg */
-};
+void initriscv(struct riscv_bootparams *);
 
-struct dbreg {
-	int dummy;
-};
-
-#endif /* !_MACHINE_REG_H_ */
+#endif /* _MACHINE_MACHDEP_H_ */

@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -12,9 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -27,9 +22,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)limits.h	8.3 (Berkeley) 1/4/94
- *	from: src/sys/i386/include/_limits.h,v 1.27 2005/01/06 22:18:15 imp
  */
 
 #ifndef _MACHINE__LIMITS_H_
@@ -60,42 +52,46 @@
 #define	__INT_MIN	(-0x7fffffff - 1)	/* min value for an int */
 
 #ifdef __loongarch64
-#define	__ULONG_MAX	0xffffffffffffffff
-#define	__LONG_MAX	0x7fffffffffffffff
-#define	__LONG_MIN	(-0x7fffffffffffffff - 1)
-#define	__LONG_BIT	64
+#define	__ULONG_MAX	0xffffffffffffffffUL	/* max for an unsigned long */
+#define	__LONG_MAX	0x7fffffffffffffffL	/* max for a long */
+#define	__LONG_MIN	(-0x7fffffffffffffffL - 1) /* min for a long */
+#define __LONG_BIT      64
 #else
-#define	__ULONG_MAX	0xffffffffUL	/* max value for an unsigned long */
-#define	__LONG_MAX	0x7fffffffL	/* max value for a long */
-#define	__LONG_MIN	(-0x7fffffffL - 1)	/* min value for a long */
-#define	__LONG_BIT	32
+#define __ULONG_MAX     0xffffffffUL    /* max value for an unsigned long */
+#define __LONG_MAX      0x7fffffffL     /* max value for a long */
+#define __LONG_MIN      (-0x7fffffffL - 1)      /* min value for a long */
+#define __LONG_BIT      32
 #endif
 
-			/* max value for an unsigned long long */
+
+/* Long longs have the same size but not the same type as longs. */
+			/* max for an unsigned long long */
 #define	__ULLONG_MAX	0xffffffffffffffffULL
-#define	__LLONG_MAX	0x7fffffffffffffffLL	/* max value for a long long */
-#define	__LLONG_MIN	(-0x7fffffffffffffffLL - 1)  /* min for a long long */
+#define	__LLONG_MAX	0x7fffffffffffffffLL	/* max for a long long */
+#define	__LLONG_MIN	(-0x7fffffffffffffffLL - 1) /* min for a long long */
 
 #ifdef __loongarch64
 #define	__SSIZE_MAX	__LONG_MAX	/* max value for a ssize_t */
 #define	__SIZE_T_MAX	__ULONG_MAX	/* max value for a size_t */
 #define	__OFF_MAX	__LONG_MAX	/* max value for an off_t */
 #define	__OFF_MIN	__LONG_MIN	/* min value for an off_t */
+/* Quads and longs are the same size.  Ensure they stay in sync. */
 #define	__UQUAD_MAX	__ULONG_MAX	/* max value for a uquad_t */
 #define	__QUAD_MAX	__LONG_MAX	/* max value for a quad_t */
 #define	__QUAD_MIN	__LONG_MIN	/* min value for a quad_t */
 #else
-#define	__SSIZE_MAX	__INT_MAX
-#define	__SIZE_T_MAX	__UINT_MAX
-#define	__OFF_MAX	__LLONG_MAX
-#define	__OFF_MIN	__LLONG_MIN
-#define	__UQUAD_MAX	__ULLONG_MAX
-#define	__QUAD_MAX	__LLONG_MAX
-#define	__QUAD_MIN	__LLONG_MIN
+#define __SSIZE_MAX     __INT_MAX
+#define __SIZE_T_MAX    __UINT_MAX
+#define __OFF_MAX       __LLONG_MAX
+#define __OFF_MIN       __LLONG_MIN
+#define __UQUAD_MAX     __ULLONG_MAX
+#define __QUAD_MAX      __LLONG_MAX
+#define __QUAD_MIN      __LLONG_MIN
 #endif
 
 #define	__WORD_BIT	32
 
-#define __MINSIGSTKSZ     (512 * 4)
+/* Minimum signal stack size. */
+#define	__MINSIGSTKSZ	(1024 * 4)
 
 #endif /* !_MACHINE__LIMITS_H_ */

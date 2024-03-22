@@ -1,9 +1,15 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause
- *
  * Copyright (c) 1999 Luoqi Chen <luoqi@freebsd.org>
- * Copyright (c) Peter Wemm <peter@netplex.com.au>
+ * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
+ *
+ * Portions of this software were developed by SRI International and the
+ * University of Cambridge Computer Laboratory under DARPA/AFRL contract
+ * FA8750-10-C-0237 ("CTSRD"), as part of the DARPA CRASH research programme.
+ *
+ * Portions of this software were developed by the University of Cambridge
+ * Computer Laboratory as part of the CTSRD Project, with support from the
+ * UK Higher Education Innovation Fund (HEIF).
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,73 +32,53 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: src/sys/alpha/include/pcpu.h,v 1.15 2004/11/05 19:16:44 jhb
+ *	from: FreeBSD: src/sys/i386/include/globaldata.h,v 1.27 2001/04/27
  */
 
-#ifndef _MACHINE_PCPU_H_
+#ifndef	_MACHINE_PCPU_H_
 #define	_MACHINE_PCPU_H_
 
+#include <machine/cpu.h>
 #include <machine/cpufunc.h>
-#include <machine/pte.h>
 
-#define	PCPU_MD_COMMON_FIELDS						\
-	pd_entry_t	*pc_segbase;		/* curthread segbase */	\
-	struct	pmap	*pc_curpmap;		/* pmap of curthread */	\
-	u_int32_t	pc_next_asid;		/* next ASID to alloc */ \
-	u_int32_t	pc_asid_generation;	/* current ASID generation */ \
-	u_int		pc_pending_ipis;	/* IPIs pending to this CPU */ \
-	struct	pcpu	*pc_self;		/* globally-uniqe self pointer */
-
-#ifdef	__mips_n64
-#define	PCPU_MD_MIPS64_FIELDS						\
-	PCPU_MD_COMMON_FIELDS						\
-	char		__pad[245]
-#else
-#define	PCPU_MD_MIPS32_FIELDS						\
-	PCPU_MD_COMMON_FIELDS						\
-	pt_entry_t	*pc_cmap1_ptep;		/* PTE for copy window 1 KVA */ \
-	pt_entry_t	*pc_cmap2_ptep;		/* PTE for copy window 2 KVA */ \
-	vm_offset_t	pc_cmap1_addr;		/* KVA page for copy window 1 */ \
-	vm_offset_t	pc_cmap2_addr;		/* KVA page for copy window 2 */ \
-	vm_offset_t	pc_qmap_addr;		/* KVA page for temporary mappings */ \
-	pt_entry_t	*pc_qmap_ptep;		/* PTE for temporary mapping KVA */ \
-	char		__pad[97]
-#endif
-
-#ifdef	__mips_n64
-#define	PCPU_MD_FIELDS	PCPU_MD_MIPS64_FIELDS
-#else
-#define	PCPU_MD_FIELDS	PCPU_MD_MIPS32_FIELDS
-#endif
+/* Keep in sync with db_show_mdpcpu() */
+#define	PCPU_MD_FIELDS							\
+	struct pmap *pc_curpmap;	/* Currently active pmap */	\
+	uint32_t pc_pending_ipis;	/* IPIs pending to this CPU */	\
+	uint32_t pc_hart;		/* Hart ID */			\
+	char __pad[56]			/* Pad to factor of PAGE_SIZE */
 
 #ifdef _KERNEL
 
-extern char pcpu_space[MAXCPU][PAGE_SIZE * 2];
-#define	PCPU_ADDR(cpu)		(struct pcpu *)(pcpu_space[(cpu)])
+struct pcb;
+struct pcpu;
 
-extern struct pcpu *pcpup;
-#define	PCPUP	pcpup
+static inline struct pcpu *
+get_pcpu(void)
+{
+	struct pcpu *pcpu;
 
-/*
- * Since we use a wired TLB entry to map the same VA to a different
- * physical page for each CPU, get_pcpu() must use the pc_self
- * field to obtain a globally-unique pointer.
- */
-#define	get_pcpu()		(PCPUP->pc_self)
+	__asm __volatile("mv %0, tp" : "=&r"(pcpu));
 
-#define	PCPU_ADD(member, value)	(PCPUP->pc_ ## member += (value))
-#define	PCPU_GET(member)	(PCPUP->pc_ ## member)
-#define	PCPU_INC(member)	PCPU_ADD(member, 1)
-#define	PCPU_PTR(member)	(&PCPUP->pc_ ## member)
-#define	PCPU_SET(member,value)	(PCPUP->pc_ ## member = (value))
-#define PCPU_LAZY_INC(member)   (++PCPUP->pc_ ## member)
+	return (pcpu);
+}
 
-#ifdef SMP
-/*
- * Instantiate the wired TLB entry at PCPU_TLB_ENTRY to map 'pcpu' at 'pcpup'.
- */
-void	mips_pcpu_tlb_init(struct pcpu *pcpu);
-#endif
+static inline struct thread *
+get_curthread(void)
+{
+	struct thread *td;
+
+	__asm __volatile("ld %0, 0(tp)" : "=&r"(td));
+
+	return (td);
+}
+
+#define	curthread get_curthread()
+
+#define	PCPU_GET(member)	(get_pcpu()->pc_ ## member)
+#define	PCPU_ADD(member, value)	(get_pcpu()->pc_ ## member += (value))
+#define	PCPU_PTR(member)	(&get_pcpu()->pc_ ## member)
+#define	PCPU_SET(member,value)	(get_pcpu()->pc_ ## member = (value))
 
 #endif	/* _KERNEL */
 

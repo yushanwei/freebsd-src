@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 1993 The Regents of the University of California.
  * All rights reserved.
  *
@@ -27,19 +25,22 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	from: FreeBSD: src/sys/i386/include/sysarch.h,v 1.14 2000/09/21
  */
 
 /*
- * Architecture specific syscalls (MIPS)
+ * Architecture specific syscalls (RISC-V)
  */
 #ifndef _MACHINE_SYSARCH_H_
-#define _MACHINE_SYSARCH_H_
+#define	_MACHINE_SYSARCH_H_
 
 #ifndef _KERNEL
 
 __BEGIN_DECLS
-int sysarch(int, void *);
+int	sysarch(int _number, void *_args);
 __END_DECLS
+
 #endif
 
 #endif /* !_MACHINE_SYSARCH_H_ */

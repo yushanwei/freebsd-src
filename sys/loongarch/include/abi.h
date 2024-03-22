@@ -58,25 +58,165 @@
 #define	_MACHINE_ABI_H_
 
 /*
- * Macros to handle different pointer/register sizes for 32/64-bit code
- */
-
-/*
  * Size of a register
  */
 #ifndef __loongarch64
 #define SZREG   4
-#else
-#define SZREG   8
+#define SZFREG 4
+#define	SZFPREG	4
+
+#define REG_L           ld.w
+#define REG_S           st.w
+#define REG_ADD         add.w
+#define REG_SUB         sub.w
+#define BSTRINS         bstrins.w
+#define REG_SCALESHIFT  2
+#define PTR_ADD         add.w
+#define PTR_ADDI        addi.w
+#define PTR_SUB         sub.w
+#define PTR_L           ld.w
+#define PTR_S           st.w
+#define PTR_LI          li.w
+#define PTR_SLL         slli.w
+#define PTR_SLLV        sll.w
+#define PTR_SRL         srli.w
+#define PTR_SRLV        srl.w
+#define PTR_SRA         srai.w
+#define PTR_SRAV        sra.w
+#define PTR_SCALESHIFT  2
+#define PTRSIZE         4
+#define PTRLOG          2
+#ifdef __ASSEMBLY__
+#define PTR_WORD        .word
 #endif
+#define INT_ADD         add.w
+#define INT_ADDI        addi.w
+#define INT_SUB         sub.w
+#define INT_L           ld.w
+#define INT_S           st.w
+#define INT_SLL         slli.w
+#define INT_SLLV        sll.w
+#define INT_SRL         srli.w
+#define INT_SRLV        srl.w
+#define INT_SRA         srai.w
+#define INT_SRAV        sra.w
+#ifdef __ASSEMBLY__
+#define INT_WORD        .word
+#endif
+#define INT_SCALESHIFT  2
+#define LONG_ADD        add.w
+#define LONG_ADDI       addi.w
+#define LONG_SUB        sub.w
+#define LONG_L          ld.w
+#define LONG_S          st.w
+#define LONG_SLL        slli.w
+#define LONG_SLLV       sll.w
+#define LONG_SRL        srli.w
+#define LONG_SRLV       srl.w
+#define LONG_SRA        srai.w
+#define LONG_SRAV       sra.w
+#define LONGSIZE        4
+#define LONGMASK        3
+#define LONGLOG         2
+#define LONG_SCALESHIFT 2
+#ifdef __ASSEMBLY__
+#define LONG            .word
+#endif
+
+#else /* __loongarch64 */
+
+#define SZREG   8
 #define SZFREG 8
 #define	SZFPREG	8
+
+#define REG_L           ld.d
+#define REG_S           st.d
+#define REG_ADD         add.d
+#define REG_SUB         sub.d
+#define BSTRINS         bstrins.d
+#define REG_SCALESHIFT  3
+#define PTR_ADD         add.d
+#define PTR_ADDI        addi.d
+#define PTR_SUB         sub.d
+#define PTR_L           ld.d
+#define PTR_S           st.d
+#define PTR_LI          li.d
+#define PTR_SLL         slli.d
+#define PTR_SLLV        sll.d
+#define PTR_SRL         srli.d
+#define PTR_SRLV        srl.d
+#define PTR_SRA         srai.d
+#define PTR_SRAV        sra.d
+#define PTR_SCALESHIFT  3
+#define PTRSIZE         8
+#define PTRLOG          3
+#ifdef __ASSEMBLY__
+#define PTR_WORD        .dword
+#endif
+#define INT_ADD         add.d
+#define INT_ADDI        addi.d
+#define INT_SUB         sub.d
+#define INT_L           ld.d
+#define INT_S           st.d
+#define INT_SLL         slli.d
+#define INT_SLLV        sll.d
+#define INT_SRL         srli.d
+#define INT_SRLV        srl.d
+#define INT_SRA         srai.d
+#define INT_SRAV        sra.d
+#ifdef __ASSEMBLY__
+#define INT_WORD        .dword
+#endif
+#define INT_SCALESHIFT  3
+#define LONG_ADD        add.d
+#define LONG_ADDI       addi.d
+#define LONG_SUB        sub.d
+#define LONG_L          ld.d
+#define LONG_S          st.d
+#define LONG_SLL        slli.d
+#define LONG_SLLV       sll.d
+#define LONG_SRL        srli.d
+#define LONG_SRLV       srl.d
+#define LONG_SRA        srai.d
+#define LONG_SRAV       sra.d
+#define LONGSIZE        8
+#define LONGMASK        7
+#define LONGLOG         3
+#define LONG_SCALESHIFT 3
+#ifdef __ASSEMBLY__
+#define LONG            .dword
+#endif
+
+#endif/* __loongarch64 */
+
+#if defined(__loongarch_single_float)
+#define FREG_L fld.w
+#define FREG_S fst.w
+#elif defined(__loongarch_double_float)
+#define FREG_L fld.d
+#define FREG_S fst.d
+#endif
+
 #define SZVREG 16
 #define SZXREG 32
 
 #define	ALSK	15		/* stack alignment */
 #define	ALMASK	-15		/* stack alignment */
 #define	STACK_ALIGN	16
+
+/*
+ * How to add/sub/load/store/shift C int variables.
+*/
+#if (__SIZEOF_INT__ == 4)
+#elif (__SIZEOF_INT__ == 8)
+#endif
+/*
+ * How to add/sub/load/store/shift C long variables.
+ */
+#if (__SIZEOF_LONG__ == 4)
+#elif(__SIZEOF_LONG__ == 8)
+#endif
+
 
 /*
  *  standard callframe {
@@ -89,10 +229,7 @@
  */
 #define	CALLFRAME_SIZ	(SZREG * 4)
 #define	CALLFRAME_S0	(CALLFRAME_SIZ - 4 * SZREG)
-
-#ifndef _KERNEL
 #define	CALLFRAME_GP	(CALLFRAME_SIZ - 3 * SZREG)
-#endif
 #define	CALLFRAME_SP	(CALLFRAME_SIZ - 2 * SZREG)
 #define	CALLFRAME_RA	(CALLFRAME_SIZ - 1 * SZREG)
 
