@@ -84,6 +84,8 @@
 #define KMP_ARCH_STR "MIPS64"
 #elif KMP_ARCH_RISCV64
 #define KMP_ARCH_STR "RISCV64"
+#elif KMP_ARCH_LOONGARCH64
+#define KMP_ARCH_STR "LOONGARCH64"
 #else
 #error Unknown KMP_ARCH value
 #endif // } FreeBSD customization
