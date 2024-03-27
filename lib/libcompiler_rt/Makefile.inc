@@ -163,7 +163,7 @@ SRCF+=		fp_mode
 # 128-bit quad precision long double support,
 # only used on some architectures.
 #
-.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "riscv" || ${MACHINE_CPUARCH} == "loongarch"
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "riscv"
 SRCF+=		addtf3
 SRCF+=		comparetf2
 SRCF+=		divtf3
