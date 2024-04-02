@@ -119,6 +119,10 @@ CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/powerpc
 CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/riscv
 .PATH:		${SRCTOP}/cddl/contrib/opensolaris/lib/libdtrace/riscv
 .PATH:		${SRCTOP}/sys/cddl/dev/dtrace/riscv
+.elif ${MACHINE_CPUARCH} == "loongarch"
+CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/loongarch
+.PATH:		${SRCTOP}/cddl/contrib/opensolaris/lib/libdtrace/loongarch
+.PATH:		${SRCTOP}/sys/cddl/dev/dtrace/loongarch
 .else
 # temporary hack
 CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/intel
@@ -132,6 +136,11 @@ DSRCS+=		regs_x86.d
 .if ${MACHINE_CPUARCH} == "riscv"
 SRCS+=		instr_size.c
 DSRCS+=		regs_riscv.d
+.endif
+
+.if ${MACHINE_CPUARCH} == "loongarch"
+SRCS+=		instr_size.c
+DSRCS+=		regs_loongarch.d
 .endif
 
 .if ${MACHINE_CPUARCH} == "aarch64"
