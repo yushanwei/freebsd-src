@@ -228,6 +228,10 @@ prepare_elf32(dtrace_hdl_t *dtp, const dof_hdr_t *dof, dof_elf32_t *dep)
 			rel->r_offset = s->dofs_offset + dofr[j].dofr_offset;
 			rel->r_info = ELF32_R_INFO(count + dep->de_global,
 			    R_RISCV_32_PCREL);
+#elif defined(__loongarch__)
+			rel->r_offset = s->dofs_offset + dofr[j].dofr_offset;
+			rel->r_info = ELF32_R_INFO(count + dep->de_global,
+			    R_LARCH_32_PCREL);
 #else
 #error unknown ISA
 #endif
@@ -406,6 +410,10 @@ prepare_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, dof_elf64_t *dep)
 			rel->r_offset = s->dofs_offset + dofr[j].dofr_offset;
 			rel->r_info = ELF64_R_INFO(count + dep->de_global,
 			    R_RISCV_32_PCREL);
+#elif defined(__loongarch__)
+			rel->r_offset = s->dofs_offset + dofr[j].dofr_offset;
+			rel->r_info = ELF64_R_INFO(count + dep->de_global,
+			    R_LARCH_32_PCREL);
 #elif defined(__i386) || defined(__amd64)
 			rel->r_offset = s->dofs_offset +
 			    dofr[j].dofr_offset;
@@ -508,6 +516,8 @@ dump_elf32(dtrace_hdl_t *dtp, const dof_hdr_t *dof, int fd)
 	elf_file.ehdr.e_machine = EM_AARCH64;
 #elif defined(__riscv)
 	elf_file.ehdr.e_machine = EM_RISCV;
+#elif defined(__loongarch__)
+	elf_file.ehdr.e_machine = EM_LOONGARCH;
 
 	/* Set the ELF flags according to our current ABI */
 #if defined(__riscv_compressed)
@@ -521,6 +531,15 @@ dump_elf32(dtrace_hdl_t *dtp, const dof_hdr_t *dof, int fd)
 #endif
 #if defined(__riscv_float_abi_double)
 	elf_file.ehdr.e_flags |= EF_RISCV_FLOAT_ABI_DOUBLE;
+#endif
+#if defined(__loongarch_soft_float)
+	elf_file.ehdr.e_flags |= EF_LOONGARCH_ABI_SOFT_FLOAT;
+#endif
+#if defined(__loongarch_single_float)
+	elf_file.ehdr.e_flags |= EF_LOONGARCH_ABI_SINGLE_FLOAT;
+#endif
+#if defined(__loongarch_double_float)
+	elf_file.ehdr.e_flags |= EF_LOONGARCH_ABI_DOUBLE_FLOAT;
 #endif
 #endif
 	elf_file.ehdr.e_version = EV_CURRENT;
@@ -665,6 +684,8 @@ dump_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, int fd)
 	elf_file.ehdr.e_machine = EM_AARCH64;
 #elif defined(__riscv)
 	elf_file.ehdr.e_machine = EM_RISCV;
+#elif defined(__loongarch__)
+	elf_file.ehdr.e_machine = EM_LOONGARCH;
 
 	/* Set the ELF flags according to our current ABI */
 #if defined(__riscv_compressed)
@@ -678,6 +699,15 @@ dump_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, int fd)
 #endif
 #if defined(__riscv_float_abi_double)
 	elf_file.ehdr.e_flags |= EF_RISCV_FLOAT_ABI_DOUBLE;
+#endif
+#if defined(__loongarch_soft_float)
+        elf_file.ehdr.e_flags |= EF_LOONGARCH_ABI_SOFT_FLOAT;
+#endif
+#if defined(__loongarch_single_float)
+        elf_file.ehdr.e_flags |= EF_LOONGARCH_ABI_SINGLE_FLOAT;
+#endif
+#if defined(__loongarch_double_float)
+        elf_file.ehdr.e_flags |= EF_LOONGARCH_ABI_DOUBLE_FLOAT;
 #endif
 #endif
 	elf_file.ehdr.e_version = EV_CURRENT;
@@ -1021,6 +1051,77 @@ dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
 	return (0);
 }
 
+#elif defined(__loongarch__)
+#define	DT_OP_NOP		0x00000013 /* addi x0, x0, 0 */
+#define	DT_OP_RET		0x00008067 /* jalr x0, x1, 0 */
+#define	DT_OP_IS_AUIPC(op)	(((op) & 0x7f) == 0x17)
+#define	DT_OP_IS_JALR(op)	(((op) & 0x707f) == 0x67)
+#define	DT_OP_JALR_CALL		0x000080e7 /* jalr x1, x1, 0 */
+#define	DT_OP_JALR_TAIL		0x00030067 /* jalr x0, x6, 0 */
+#define	DT_REL_NONE		R_LARCH_NONE
+
+static int
+dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
+    uint32_t *off)
+{
+	uint32_t *ip;
+
+	/*
+	 * XXX: this implementation is untested, but should serve as a decent
+	 * starting point.
+	 */
+
+	/*
+	 * Ensure that the offset is aligned on a compressed-instruction
+	 * boundary.
+	 */
+	if ((rela->r_offset & (sizeof (uint16_t) - 1)) != 0)
+		return (-1);
+
+	/*
+	 * We only know about some specific relocation types.
+	 * We also recognize relocation type NONE, since that gets used for
+	 * relocations of USDT probes, and we might be re-processing a file.
+	 */
+	if (GELF_R_TYPE(rela->r_info) != R_RISCV_CALL &&
+	    GELF_R_TYPE(rela->r_info) != R_RISCV_CALL_PLT &&
+	    GELF_R_TYPE(rela->r_info) != R_RISCV_NONE)
+		return (-1);
+
+	ip = (uint32_t *)(p + rela->r_offset);
+
+	/*
+	 * We may have already processed this object file in an earlier linker
+	 * invocation. Check to see if the present instruction sequence matches
+	 * the one we would install below.
+	 */
+	if (ip[0] == DT_OP_NOP && (ip[1] == DT_OP_NOP || ip[1] == DT_OP_RET))
+		return (0);
+
+	/*
+	 * We expect a auipc+jalr pair, either from a call or a tail.
+	 *  - call: auipc x1 0; jalr x1, x1, 0
+	 *  - tail: auipc x6 0; jalr x0, x6, 0
+	 */
+	if (!DT_OP_IS_AUIPC(ip[0]) || !DT_OP_IS_JALR(ip[1]))
+		return (-1);
+
+	/*
+	 * On riscv, we do not have to differentiate between regular probes and
+	 * is-enabled probes. Calls are to be converted into a no-op whereas
+	 * tail calls should become a return.
+	 */
+	if (ip[1] == DT_OP_JALR_CALL) {
+		ip[0] = DT_OP_NOP;
+		ip[1] = DT_OP_NOP;
+	} else {
+		ip[0] = DT_OP_NOP;
+		ip[1] = DT_OP_RET;
+	}
+
+	return (0);
+}
+
 #elif defined(__i386) || defined(__amd64)
 
 #define	DT_OP_NOP		0x90
@@ -1251,6 +1352,8 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 		emachine1 = emachine2 = EM_AARCH64;
 #elif defined(__riscv)
 		emachine1 = emachine2 = EM_RISCV;
+#elif defined(__loongarch__)
+		emachine1 = emachine2 = EM_LOONGARCH;
 #endif
 		symsize = sizeof (Elf64_Sym);
 	} else {
