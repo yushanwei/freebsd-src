@@ -1,3 +1,34 @@
+#### 使用说明
+20250317:默认启用LLVM_BINUTILS,简化了edk2升级
+20250312:ports里的llvm19能编译龙芯了
+20241204:elf_common.h要先复制到HOST中
+20241122:elftoolchain升到最新
+20241111:研究一下内核
+20241029:在hitmoon的帮助下，终于能生成可运行的.efi文件
+20241024:升到llvm19
+	:elfcopy相关已撤回
+20240429:HOST程序更新了，用于编译efi：
+file
+
+HOST相关的更新：
+libmagic
+elftoolchain:libelf,libelftc,libpe
+sys/contrib/edk2
+2023:
+1.  setenv TARGET loongarch
+2.  setenv TARGET_ARCH loongarch64
+3.  setenv SRC_ENV_CONF ..../src-env.conf
+4.  make  toolchain
+5.  make  world
+
+src-env.conf:
+WITHOUT_SYSTEM_COMPILER=
+WITHOUT_SYSTEM_LINKER=
+
+WITHOUT_TESTS=
+WITHOUT_RESCUE=
+WITHOUT_ASAN=
+
 FreeBSD Source:
 ---------------
 This is the top level of the FreeBSD source directory.
