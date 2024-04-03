@@ -1,3 +1,31 @@
+#### 使用说明
+20240429:HOST程序更新了，用于编译efi：
+file
+objcopy改用原名->elfcopy
+llvm-objcopy链接到objcopy
+
+相关的更新：
+libmagic
+elftoolchain:libelf,libelftc,libpe
+sys/contrib/edk2
+2023:
+1.  setenv TARGET loongarch
+2.  setenv TARGET_ARCH loongarch64
+3.  setenv SRC_ENV_CONF ..../src-env.conf
+4.  make  toolchain
+5.  make  world
+
+src-env.conf:
+WITHOUT_SYSTEM_COMPILER=
+WITHOUT_SYSTEM_LINKER=
+WITH_LLVM_BINUTILS=
+WITH_LLVM_COV=
+WITHOUT_GCOV=
+
+WITHOUT_TESTS=
+WITHOUT_RESCUE=
+
+
 FreeBSD Source:
 ---------------
 This is the top level of the FreeBSD source directory.
