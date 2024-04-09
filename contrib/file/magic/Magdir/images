@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: images,v 1.243 2023/07/17 16:49:09 christos Exp $
+# $File: images,v 1.252 2024/03/31 14:55:42 christos Exp $
 # images:  file(1) magic for image formats (see also "iff", and "c-lang" for
 # XPM bitmaps)
 #
@@ -13,8 +13,10 @@
 # Targa - matches `povray', `ppmtotga' and `xv' outputs
 # by Philippe De Muyter <phdm@macqel.be>
 # URL: http://justsolve.archiveteam.org/wiki/TGA
+#      https://en.wikipedia.org/wiki/Truevision_TGA
 # Reference: http://www.dca.fee.unicamp.br/~martino/disciplinas/ea978/tgaffs.pdf
-# Update: Joerg Jenderek
+# Update: Joerg Jenderek February 2024
+# Note:		called by DROID "Truevision TGA Bitmap" version 1.0 via PUID x-fmt/367
 # at 2, byte ImgType must be 1, 2, 3, 9, 10 or 11
 #	,32 or 33 (both not observed)
 # at 1, byte CoMapType must be 1 if ImgType is 1 or 9, 0 otherwise
@@ -27,6 +29,8 @@
 # and Image Type 1 2 3 9 10 11 32 33
 # and Color Map Entry Size 0 15 16 24 32
 0	ubequad&0x00FeC400000000C0	0
+# Targa image data (strength=70=110-40) before some Commodore disc image (strength=70=70+0 ./c64) like Cabal+2-MarioSoft(1).d64
+# and some MMDF mailbox (strength=70=70+0 ./mmdf) like uupc.input.1
 # Conflict with MPEG sequences.
 !:strength -40
 # Prevent conflicts with CRI ADX.
@@ -42,7 +46,10 @@
 >>>>17	ubyte&0x0F		!11
 # skip arches.3200 , Finder.Root , Slp.1 by looking for low pixel depth 1 8 15 16 24 32
 >>>>>16	ubyte			1
->>>>>>0		use		tga-image
+# skip few Commodore D64 disc image like "The Great Gianna Sisters.d64" and 
+# few MMDF mailbox like uupc.input.1 with unlikely black&white, dimension 0101h x 0101h (257x257) and +0101h origin (+257 +257)
+>>>>>>8	quad			!0x0101010101010101
+>>>>>>>0	use		tga-image
 >>>>>16	ubyte			8
 >>>>>>0		use		tga-image
 >>>>>16	ubyte			15
@@ -57,9 +64,11 @@
 0	name				tga-image
 >2	ubyte		<34		Targa image data
 !:mime	image/x-tga
+# Apple Uniform Type Identifier:	com.truevision.tga-image
 !:apple	????TPIC
 # normal extension .tga but some Truevision products used others:
 # tpic (Apple),icb (Image Capture Board),vda (Video Display Adapter),vst (NuVista),win (UNSURE about that)
+# afi bpx
 !:ext	tga/tpic/icb/vda/vst
 # image type 1 2 3 9 10 11 32 33
 >2	ubyte&0xF7	1		- Map
@@ -110,6 +119,7 @@
 # positive length implies identification field
 >0	ubyte		>0
 >>18	string		x		"%s"
+# Note:		called by DROID "Truevision TGA Bitmap" version 2.0 via fmt/402
 # last 18 bytes of newer tga file footer signature
 >18	search/4261301/s	TRUEVISION-XFILE.\0
 # extension area offset if not 0
@@ -496,6 +506,12 @@
 !:ext   png
 !:strength +10
 >16	use		png-ihdr
+>33	string		\x00\x00\x00\x08acTL	\b, animated
+>>41	ubelong		1			(%d frame
+>>41	ubelong		>1			(%d frames
+>>45	ubelong		0			\b, infinite repetitions)
+>>45	ubelong		1			\b, %d repetition)
+>>45	ubelong		>1			\b, %d repetitions)
 
 # Apple CgBI PNG image.
 0	string		\x89PNG\x0d\x0a\x1a\x0a\x00\x00\x00\x04CgBI
@@ -543,6 +559,23 @@
 #>10	ubyte&0x07	=0x05		64 colors
 #>10	ubyte&0x07	=0x06		128 colors
 #>10	ubyte&0x07	=0x07		256 colors
+
+# URL:		http://fileformats.archiveteam.org/wiki/Jeff%27s_Image_Format
+#		http://web.archive.org/web/20010603113404/http://jeff.cafe.net/jif
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/b/bitmap-jif.trid.xml
+#		https://www.nationalarchives.gov.uk/PRONOM/fmt/994
+# From:		Joerg Jenderek
+# Note:		nearly identical to GIF, except that it uses zlib compression instead of LZW
+#		called by TrID "Jeff's Image Format bitmap" and "Jeffs Image Format" by DROID via fmt/994
+#		verfied by XnView `nconvert -fullinfo *.jif` as "Jeff's Image Format"
+0	string		JIF99a		Jeffs Image Format data
+!:mime	image/x-jif
+# http://extension.nirsoft.net/jif
+#!:mime	image/jif
+!:apple	????JIFf
+!:ext	jif
+>6	uleshort	x		%u x
+>8	uleshort	x		%u
 
 # ITC (CMU WM) raster files.  It is essentially a byte-reversed Sun raster,
 # 1 plane, no encoding.
@@ -1296,20 +1329,75 @@
 
 # SGI image file format, from Daniel Quinlan (quinlan@yggdrasil.com)
 #
-# See
-#	http://reality.sgi.com/grafica/sgiimage.html
-#
-0	ubeshort		474		SGI image data
-#>2	ubyte		0		\b, verbatim
->2	ubyte		1		\b, RLE
-#>3	ubyte		1		\b, normal precision
->3	ubyte		2		\b, high precision
->4	ubeshort	x		\b, %d-D
->6	ubeshort	x		\b, %d x
->8	ubeshort	x		%d
->10	ubeshort	x		\b, %d channel
->10	ubeshort	!1		\bs
->80	string		>0		\b, "%s"
+# Update:	Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/SGI_(image_file_format)
+#		https://en.wikipedia.org/wiki/Silicon_Graphics_Image
+# Reference:	https://paulbourke.net/dataformats/sgirgb/sgiversion.html
+#		http://mark0.net/download/triddefs_xml.7z/defs/b/bitmap-sgi.trid.xml
+# Note:		called "Silicon Graphics bitmap (generic)" by TrID,
+#		"Silicon Graphics Image" by DROID via PUID x-fmt/140 and shared MIME-info database from freedesktop.org,
+#		verfied by ImageMagick `identify -verbose *.sgi` as SGI (Irix RGB image) and
+#		verfied by XnView `nconvert -in sgi -info *.sgi` as SGI RGB
+# look for magic number (integer 474=0x01DA) + storage format (0 or 1) + number of bytes per pixel channel (1 or 2) 
+# to skip few TeX font metric data (like pxmi.tfm pxmi1.tfm eksfi8a.tfm ./tex) with invalid "high" bytes/pixel (11 12)
+0	ubelong&0xFFffFEfc	0x01da0000
+# skip DROID x-fmt-140-signature-id-623.bw with invalid "low" dimensions "0 x 0"
+>6	long			!0		SGI image data
+#!:mime	image/sgi
+!:mime	image/x-sgi
+!:apple	????.SGI
+# STORAGE format; allowed values 0~VERBATIM 1~RLE 
+#>>2	ubyte		0		\b, verbatim
+>>2	ubyte		1		\b, RLE
+#>>2	ubyte		>1		STORAGE=%#x
+# BPC; number of bytes per pixel component; allowed values 1 2
+#>>3	ubyte		1		\b, normal precision
+>>3	ubyte		2		\b, high precision
+#>>3	ubyte		x		BPC=%#x
+# DIMENSION; allowed values are 1~scanline 2~XSIZExYSIZE 3~XSIZExYSIZExZSIZE
+>>4	ubeshort	x		\b, %d-D
+# XSIZE; width of image in pixels
+>>6	ubeshort	x		\b, %d x
+# YSIZE; height of image in pixels
+>>8	ubeshort	x		%d
+# ZSIZE; number of channels in image; 1~B/W (greyscale) 3~RGB 4~RGB+ALPHA channel
+>>10	ubeshort	x		\b, %d
+# GRR: avoid
+# Magdir\images, 1347: Warning: Current entry does not yet have a description for adding a EXTENSION type
+>>>10	ubeshort	1		channel
+# GRR: exception https://sembiance.com/fileFormatSamples/image/sgi/greytest.rgb
+!:ext	bw
+# no examples found with .int suffix
+#!:ext	bw/int
+# no examples found with .inta suffix for black/white+ALPHA channel
+# no examples found with 2 channels
+#>>>10	ubeshort	2		channels
+#!:ext	sgi
+>>>10	ubeshort	3		channels
+!:ext	rgb/sgi
+>>>10	ubeshort	4		channels
+!:ext	rgba/sgi
+>>>10	default		x		channels
+# no examples found with 5 and more channels
+!:ext	sgi
+# IMAGENAME; null terminated ascii string of up to 79 characters
+>>24	string		>\0		\b, "%0.80s"
+# PINMIN; minimum pixel value in the image; often 0
+>>12	ubelong		!0		\b, %u PINMIN
+# PINMAX; maximum pixel value in the image; often 255
+>>16	ubelong		!255		\b, %u PINMAX
+# DUMMY; 4 bytes of data should be set to 0
+>>20	ubelong		!0		\b, at 20 %#x
+# COLORMAP; 0~normal 1~DITHEREDobsolete 2~SCREENobsolete 3~COLORMAP
+>>104	ubelong		!0		\b, %u COLORMAP
+# DUMMY; 404 bytes should be set to 0 but not always true; makes header exactly 512 bytes
+>>111	ubyte		!0		\b, at 111 %#x
+>>113	ubyte		!0		\b, at 113 %#x
+>>118	ubeshort	!0		\b, at 118 %#4.4x
+>>121	ubyte		!0		\b, at 121 %#x
+>>132	ubelong		!0		\b, at 132 %#8.8x
+>>135	ubyte		!0		\b, at 135 %#x
+>>137	ubequad		!0		\b, at 137 %#16.16llx
 
 0	string		IT01		FIT image data
 >4	ubelong		x		\b, %d x
@@ -1329,17 +1417,95 @@
 0	string		PCD_OPA		Kodak Photo CD overview pack file
 
 # FITS format.  Jeff Uphoff <juphoff@tarsier.cv.nrao.edu>
+# Update:	Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/Flexible_Image_Transport_System
+#		https://en.wikipedia.org/wiki/FITS
+# Reference:	https://mark0.net/download/triddefs_xml.7z/defs/b/bitmap-fts.trid.xml
+# Note:		called "Flexible Image Transport System bitmap" by TrID, GIMP and DROID via PUID x-fmt/383
+#		"FITS document" with expanded acronym "Flexible Image Transport System" by shared MIME-info database from freedesktop.org
+#		verified as "Flexible Image Transport System" by XnView `nconvert -fullinfo M57.FIT MOON.FTS` ,
+#		as "FTS (Flexible Image Transport System)" by ImageMagick command `identify MOON.FTS` ,
+#		by NetPBM `fitstopnm M57.FIT | file` ,
+#		falsified by `fitsverify M57.FIT MOON.FTS`
 # FITS is the Flexible Image Transport System, the de facto standard for
 # data and image transfer, storage, etc., for the astronomical community.
 # (FITS floating point formats are big-endian.)
-0	string	SIMPLE\ \ =	FITS image data
+# keyword is a 1- to 8-character, left-justified ASCII string; columns that do not contain data are filled with spaces
+# The assignment indicator (=) always occupies columns nine and ten in the card
+0	string	SIMPLE\ \ =
+# skip DROID x-fmt-383-signature-id-57.fits by check for left padding spaces of 2nd card value
+>89	ubeshort	=0x2020	FITS image
+# URL:		https://heasarc.gsfc.nasa.gov/fitsio/fpack/
+# Reference:	https://mark0.net/download/triddefs_xml.7z/defs/b/bitmap-fz.trid.xml
+#		https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/docs/fpackguide.pdf
+# Note:		called "Flexible Image Transport System bitmap (compressed)" by TrID
+>>240	search/0x4790/b	ZCMPTYPE=	data, compression type
+# fz suffix for compressed fits
+!:ext	fz
+# Flexible Image Transport System compression value (followed by optional FITS comment) like: NOCOMPRESS GZIP_1 GZIP_2 HCOMPRESS_1 PLIO_1 RICE_1
+#>>>&0	string		x		COMPRESSION=%0.13s
+>>>&0	regex		[A-Z_1-2]{4,11}	%s
+# not compressed Flexible Image Transport System with other filename suffix
+>>240	default		x		data
+!:ext	fits/fit/fts
+# five keywords that are required in every FITS file: SIMPLE, BITPIX, NAXIS, NAXISn, and END. EXTEND is also a required keyword if extensions are present in the file
+# required keyword in standard on 3rd card contains integer number of bits used to represent each data value but in 2nd card for M57.FIT
+>>80	search/81/b	BITPIX\040\040=
+#>>>&11	string	x		BIT=%-0.18s
+# this is the number of bits per pixel for image data
+>>>&20	string	8		\b, 8-bit, character or unsigned binary integer
+# few samples with more right positioned values like: M57.FIT
+# GRR: avoid warning: Magdir\images, 1380: Warning: description `, 8-bit, character or unsigned binary integer (too right positioned)' truncated
+>>>&28	string	8		\b, 8-bit, character or unsigned binary integer
+>>>>0	string	x		(too right positioned)
+# few samples not right justified positioned like: MOON.FTS
+>>>&11	string	8		\b, 8-bit, character or unsigned binary integer
+>>>>0	string	x		(too left positioned)
+# according to DROID but no examples found
+#>>>&19	string	08		\b, 8-bit, character or unsigned binary integer
+#>>>&19	string	+8		\b, 8-bit, character or unsigned binary integer
+>>>&19	string	16		\b, 16-bit, two's complement binary integer
+>>>&18	string	\04032		\b, 32-bit, two's complement binary integer
+>>>&18	string	-32		\b, 32-bit, floating point, single precision
+>>>&18	string	-64		\b, 64-bit, floating point, double precision
+# second 64-bit variant like: blank.fits
+>>>&18	string	\04064		\b, 64-bit, two's complement binary integer
+# in standard number of dimensions by keyword NAXIS on 3rd card image but in few cases on 2nd card like: M57.FIT
+>>80	search/81/b	NAXIS\040\040\040=		\b,
+# before optional comment 31 ASCII charactes left padded with spaces for integer (0-999) of data axis like: 0 (extension no data) 1 (spectrum) 2 (conventional bitmap) 3 (animated bitmap example.fit test.fits) 6 (DDTSUVDATA.fits)
+#>>>>&0	string		x		NAXIS=%-0.31s
+# single digit 0 implies no data or similar
+>>>&0	search/31/b	\0400\040	0 axes
+!:mime	application/fits
+# single digit 1 implies one-dimensional entity such as a spectrum or a time series (no example found)
+>>>&-1	search/31/b	\0401\040	1 axis
+!:mime	application/fits
+#!:mime	image/fits
+# single digit 2 implies conventional bitmap
+>>>&0	search/31/b	\0402\040	2 axes
 !:mime	image/fits
-!:ext	fits/fts
->109	string	8		\b, 8-bit, character or unsigned binary integer
->108	string	16		\b, 16-bit, two's complement binary integer
->107	string	\ 32		\b, 32-bit, two's complement binary integer
->107	string	-32		\b, 32-bit, floating point, single precision
->107	string	-64		\b, 64-bit, floating point, double precision
+# single digit 3 implies data cubes of three dimensions (animated bitmap or similar)
+>>>&0	search/31/b	\0403\040	3 axes
+!:mime	image/fits
+# data cubes more dimensions like: 5 (group.fits) 6 (DDTSUVDATA.fits)
+>>>&0	default		x
+>>>>&0	regex/31/s	=[0-9]{1,3} 	%s axis
+!:mime	application/fits
+# often NAXIS1 as 4th card but sometimes at higher offset like: 29400 (IUElwp25637mxlo.fits) 20400 (NICMOSn4hk12010_mos.fits)
+>>240	search/29400/bs	NAXIS1\040\040=		\b,
+# before optional comment 31 ASCII charactes left padded with spaces for first axis like: 192 512 1024 1200 2000 2064 3600 ...
+>>>&9	regex	=[0-9]{1,31} 	%s
+# often NAXIS2 as 5th card but sometimes not existent or at higher offset like: 29120 (IUElwp25637mxlo.fits) 20480 (NICMOSn4hk12010_mos.fits)
+>>>320	search/29120/bs	NAXIS2\040\040=		x
+# before optional comment 31 ASCII charactes left padded with spaces for second axis like: 2 4 165 512 800 1024 3600 ...
+>>>>&9	regex	=[0-9]{1,31} 	%s
+# not standard cards
+>>80	string	!BITPIX\040\040= \b, at 80
+# in M57.FIT like: "NAXIS   ="
+>>>80	string	x		"%-0.9s"
+>>160	string	!NAXIS\040\040\040= \b, at 160
+# in M57.FIT like: "BITPIX  ="
+>>>160	string	x		"%-0.9s"
 
 # other images
 0	string	This\ is\ a\ BitMap\ file	Lisp Machine bit-array-file
@@ -1763,8 +1929,12 @@
 
 # PCX image files
 # From: Dan Fandrich <dan@coneharvesters.com>
-# updated by Joerg Jenderek at Feb 2013 by https://de.wikipedia.org/wiki/PCX
+# updated by Joerg Jenderek at Feb 2013, Nov 2023 by https://en.wikipedia.org/wiki/PCX
 # https://web.archive.org/web/20100206055706/http://www.qzx.com/pc-gpe/pcx.txt
+# URL:		http://fileformats.archiveteam.org/wiki/PCX
+# Note:		called "PCX image" with acronym "PiCture eXchange" by shared MIME-info database from freedesktop.org
+#		verfied partly as pcx "Zsoft Paintbrush" format by XnView `nconvert -in pcx -fullinfo *.pcx` and
+#		by ImageMagick version 7.1.1-21 command `identify *.pcx`
 # GRR: original test was still too general as it catches xbase examples T5.DBT,T6.DBT with 0xa000000
 # test for bytes 0x0a,version byte (0,2,3,4,5),compression byte flag(0,1), bit depth (>0) of PCX or T5.DBT,T6.DBT
 0	ubelong&0xffF8fe00	0x0a000000
@@ -1772,28 +1942,39 @@
 >3	ubyte		>0
 # test for valid versions
 >>1	ubyte		<6
->>>1	ubyte		!1	PCX
-!:mime	image/x-pcx
-#!:mime	image/pcx
->>>>1	ubyte		0	ver. 2.5 image data
->>>>1	ubyte		2	ver. 2.8 image data, with palette
->>>>1	ubyte		3	ver. 2.8 image data, without palette
->>>>1	ubyte		4	for Windows image data
->>>>1	ubyte		5	ver. 3.0 image data
->>>>4	uleshort	x	bounding box [%d,
->>>>6	uleshort	x	%d] -
->>>>8	uleshort	x	[%d,
->>>>10	uleshort	x	%d],
->>>>65	ubyte		>1	%d planes each of
->>>>3	ubyte		x	%d-bit
->>>>68	ubyte		1	colour,
->>>>68	ubyte		2	grayscale,
+>>>1	ubyte		!1
+# skip DROID fmt-89-signature-id-62.pcx fmt-88-signature-id-63.pcx fmt-87-signature-id-64.pcx fmt-86-signature-id-65.pcx with invalid dimensions
+>>>>8	long		!0	PCX
+!:mime	image/vnd.zbrush.pcx
+# deprecated
+#!:mime	image/x-pcx
+!:ext	pcx/pcc
+# also examples like: abydos.st E-DIODE.ST MUSIC-13.ST ROSE.ST
+#!:ext	pcx/pcc/st
+# Note:		called as "PCX bitmap (v2.5)" by TrID via bitmap-pcx.trid.xml and "PCX" version 0 by DROID via PUID fmt/86
+>>>>>1	ubyte		0	ver. 2.5 image data
+# Note:		called as "PCX bitmap (v2.8, palette)" by TrID via bitmap-pcx-v28p.trid.xml and "PCX" version 2 by DROID via PUID fmt/87
+>>>>>1	ubyte		2	ver. 2.8 image data, with palette
+# Note:		called as "PCX bitmap (v2.8)" by TrID via bitmap-pcx-v28.trid.xml and "PCX" version 3 by DROID via PUID fmt/88
+>>>>>1	ubyte		3	ver. 2.8 image data, without palette
+# Note:		called as "PCX bitmap (Win)" by TrID via bitmap-pcx-win.trid.xml and "PCX" version 4 by DROID via PUID fmt/89
+>>>>>1	ubyte		4	for Windows image data
+# Note:		called as "PCX bitmap (v3.0) by TrID via bitmap-pcx-v30.trid.xml and "PCX" version 5 by DROID via PUID fmt/90
+>>>>>1	ubyte		5	ver. 3.0 image data
+>>>>>4	uleshort	x	bounding box [%d,
+>>>>>6	uleshort	x	%d] -
+>>>>>8	uleshort	x	[%d,
+>>>>>10	uleshort	x	%d],
+>>>>>65	ubyte		>1	%d planes each of
+>>>>>3	ubyte		x	%d-bit
+>>>>>68	ubyte		1	colour,
+>>>>>68	ubyte		2	grayscale,
 # this should not happen
->>>>68	default		x	image,
->>>>12	uleshort	>0	%d x
->>>>>14	uleshort	x	%d dpi,
->>>>2	ubyte		0	uncompressed
->>>>2	ubyte		1	RLE compressed
+>>>>>68	default		x	image,
+>>>>>12	uleshort	>0	%d x
+>>>>>>14 uleshort	x	%d dpi,
+>>>>>2	ubyte		0	uncompressed
+>>>>>2	ubyte		1	RLE compressed
 
 # Adobe Photoshop
 # From: Asbjoern Sloth Toennesen <asbjorn@lila.io>
@@ -3173,6 +3354,7 @@
 # Type: Khronos KTX texture.
 # From: David Korth <gerbilsoft@gerbilsoft.com>
 # Reference: https://www.khronos.org/opengles/sdk/tools/KTX/file_format_spec/
+# https://www.iana.org/assignments/media-types/image/ktx
 
 # glEnum decoding.
 # NOTE: Only the most common formats are listed here.
@@ -3247,6 +3429,8 @@
 # Main KTX header.
 # Determine endianness, then check the rest of the header.
 0	string	\xABKTX\ 11\xBB\r\n\x1A\n	Khronos KTX texture
+!:mime	image/ktx
+!:ext	ktx
 >12	ulelong	0x04030201			(little-endian)
 >>16	use	khronos-ktx-endian-header
 >12	ubelong	0x04030201			(big-endian)
@@ -3256,6 +3440,7 @@
 # From: David Korth <gerbilsoft@gerbilsoft.com>
 # Based on draft19.
 # Reference: http://github.khronos.org/KTX-Specification/
+# https://www.iana.org/assignments/media-types/image/ktx2
 
 # Supercompression enum.
 0	name	khronos-ktx2-supercompression
@@ -3517,6 +3702,8 @@
 
 # Main KTX2 header.
 0	string	\xABKTX\ 20\xBB\r\n\x1A\n	Khronos KTX2 texture
+!:mime	image/ktx2
+!:ext	ktx2
 >20	ulelong	x	\b, %u
 >24	ulelong	>1	x %u
 >28	ulelong	>1	x %u
@@ -3610,7 +3797,7 @@
 
 # Microsoft Paint graphic
 # http://www.fileformat.info/format/mspaint/egff.htm
-0	string	DanM 	icrosoft Paint image data (version 1.x)
+0	string	DanM 	Microsoft Paint image data (version 1.x)
 >4	uleshort	x	(%d
 >>6	uleshort	x	x %d)
 0	string	LinS 	Microsoft Paint image data (version 2.0)
@@ -4217,3 +4404,19 @@
 >3	string	Em	5-7
 >3	string	Fk	8-12
 >3	default	x	MAX
+
+
+# https://teem.sourceforge.net/nrrd/index.html
+# From: Quasar Jarosz <quasar@uams.edu>, 2023
+0	string	NRRD000				NRRD imaging data
+!:mime  image/x.nrrd
+!:ext   nrrd
+>7	string	x				\b, version %s
+>0	search	type: 
+>>&1	string	x				\b, type: %s
+>0	search	dimension: 
+>>&1	string	x				\b, dimensions: %s
+>0	search	sizes: 
+>>&1	string	x				\b, sizes: %s
+>0	search	encoding: 
+>>&1	string	x				\b, encoding: %s

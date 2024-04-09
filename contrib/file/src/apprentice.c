@@ -32,7 +32,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: apprentice.c,v 1.342 2023/07/17 14:38:35 christos Exp $")
+FILE_RCSID("@(#)$File: apprentice.c,v 1.348 2024/04/07 16:00:28 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -496,7 +496,7 @@ apprentice_1(struct magic_set *ms, const char *fn, int action)
 	map = apprentice_map(ms, fn);
 	if (map == NULL) {
 		if (ms->flags & MAGIC_CHECK)
-			file_magwarn(NULL, "using regular magic file `%s'", fn);
+			file_magwarn(ms, "using regular magic file `%s'", fn);
 		map = apprentice_load(ms, fn, action);
 		if (map == NULL)
 			return -1;
@@ -574,6 +574,7 @@ file_ms_alloc(int flags)
 		ms->mlist[i] = NULL;
 	ms->file = "unknown";
 	ms->line = 0;
+	ms->magwarn = 0;
 	ms->indir_max = FILE_INDIR_MAX;
 	ms->name_max = FILE_NAME_MAX;
 	ms->elf_shnum_max = FILE_ELF_SHNUM_MAX;
@@ -583,6 +584,7 @@ file_ms_alloc(int flags)
 	ms->regex_max = FILE_REGEX_MAX;
 	ms->bytes_max = FILE_BYTES_MAX;
 	ms->encoding_max = FILE_ENCODING_MAX;
+	ms->magwarn_max = FILE_MAGWARN_MAX;
 #ifdef USE_C_LOCALE
 	ms->c_lc_ctype = newlocale(LC_CTYPE_MASK, "C", 0);
 	assert(ms->c_lc_ctype != NULL);
@@ -940,7 +942,7 @@ apprentice_magic_strength_1(const struct magic *m)
 	switch (m->type) {
 	case FILE_DEFAULT:	/* make sure this sorts last */
 		if (m->factor_op != FILE_FACTOR_OP_NONE) {
-			file_magwarn(NULL, "Usupported factor_op in default %d",
+			file_magwarn1("Unsupported factor_op in default %d",
 			    m->factor_op);
 		}
 		return 0;
@@ -1135,8 +1137,15 @@ apprentice_sort(const void *a, const void *b)
 	const struct magic_entry *mb = CAST(const struct magic_entry *, b);
 	size_t sa = file_magic_strength(ma->mp, ma->cont_count);
 	size_t sb = file_magic_strength(mb->mp, mb->cont_count);
-	if (sa == sb)
-		return 0;
+	if (sa == sb) {
+		int x = memcmp(ma->mp, mb->mp, sizeof(*ma->mp));
+		if (x == 0) {
+			file_magwarn1("Duplicate magic entry `%s'",
+			    ma->mp->desc);
+			return 0;
+		}
+		return x > 0 ? -1 : 1;
+	}
 	else if (sa > sb)
 		return -1;
 	else
@@ -1330,6 +1339,8 @@ load_1(struct magic_set *ms, int action, const char *fn, int *errs,
 	/* read and parse this file */
 	for (ms->line = 1; (len = getline(&line, &llen, f)) != -1;
 	    ms->line++) {
+		if (ms->magwarn >= ms->magwarn_max)
+			break;
 		if (len == 0) /* null line, garbage, etc */
 			continue;
 		if (line[len - 1] == '\n') {
@@ -3354,6 +3365,19 @@ check_buffer(struct magic_set *ms, struct magic_map *map, const char *dbname)
 	uint32_t version;
 	int i, needsbyteswap;
 
+	entries = CAST(uint32_t, map->len / sizeof(struct magic));
+	if (entries < MAGIC_SETS + 1) {
+		file_error(ms, 0, "Too few magic entries %u in `%s'",
+		    entries, dbname);
+		return -1;
+	}
+	if ((entries * sizeof(struct magic)) != map->len) {
+		file_error(ms, 0, "Size of `%s' %" SIZE_T_FORMAT "u is not "
+		    "a multiple of %" SIZE_T_FORMAT "u",
+		    dbname, map->len, sizeof(struct magic));
+		return -1;
+	}
+
 	ptr = CAST(uint32_t *, map->p);
 	if (*ptr != MAGICNO) {
 		if (swap4(*ptr) != MAGICNO) {
@@ -3371,13 +3395,6 @@ check_buffer(struct magic_set *ms, struct magic_map *map, const char *dbname)
 		file_error(ms, 0, "File %s supports only version %d magic "
 		    "files. `%s' is version %d", VERSION,
 		    VERSIONNO, dbname, version);
-		return -1;
-	}
-	entries = CAST(uint32_t, map->len / sizeof(struct magic));
-	if ((entries * sizeof(struct magic)) != map->len) {
-		file_error(ms, 0, "Size of `%s' %" SIZE_T_FORMAT "u is not "
-		    "a multiple of %" SIZE_T_FORMAT "u",
-		    dbname, map->len, sizeof(struct magic));
 		return -1;
 	}
 	map->magic[0] = CAST(struct magic *, map->p) + 1;
@@ -3482,8 +3499,8 @@ mkdbname(struct magic_set *ms, const char *fn, int strip)
 
 	/* Did not find .mgc, restore q */
 	if (p >= ext)
-		while (*q)
-			q++;
+		for (q = fn; *q; q++)
+			continue;
 
 	q++;
 	/* Compatibility with old code that looked in .mime */

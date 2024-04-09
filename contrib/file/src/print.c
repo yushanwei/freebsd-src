@@ -32,7 +32,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: print.c,v 1.99 2023/07/17 16:40:57 christos Exp $")
+FILE_RCSID("@(#)$File: print.c,v 1.105 2024/04/07 19:19:21 christos Exp $")
 #endif  /* lint */
 
 #include <string.h>
@@ -241,23 +241,55 @@ file_mdump(struct magic *m)
 }
 #endif
 
+static void __attribute__((__format__(__printf__, 1, 0)))
+file_vmagwarn(const char *f, va_list va)
+{
+	/* cuz we use stdout for most, stderr here */
+	(void) fflush(stdout);
+
+	(void) fprintf(stderr, "Warning: ");
+	(void) vfprintf(stderr, f, va);
+	(void) fputc('\n', stderr);
+}
+
+/*VARARGS*/
+file_protected void
+file_magwarn1(const char *f, ...)
+{
+	va_list va;
+
+	va_start(va, f);
+	file_vmagwarn(f, va);
+	va_end(va);
+}
+
+
 /*VARARGS*/
 file_protected void
 file_magwarn(struct magic_set *ms, const char *f, ...)
 {
 	va_list va;
 
-	/* cuz we use stdout for most, stderr here */
-	(void) fflush(stdout);
+	if (++ms->magwarn == ms->magwarn_max) {
+		(void) fprintf(stderr,
+		    "%s, %lu: Maximum number of warnings (%u) exceeded.\n",
+		    ms->file, CAST(unsigned long, ms->line),
+		    ms->magwarn_max);
+		(void) fprintf(stderr,
+		    "%s, %lu: Additional warnings are suppressed.\n",
+		    ms->file, CAST(unsigned long, ms->line));
+	}
+	if (ms->magwarn >= ms->magwarn_max) {
+		return;
+	}
 
-	if (ms && ms->file)
+	if (ms->file)
 		(void) fprintf(stderr, "%s, %lu: ", ms->file,
 		    CAST(unsigned long, ms->line));
-	(void) fprintf(stderr, "Warning: ");
+
 	va_start(va, f);
-	(void) vfprintf(stderr, f, va);
+	file_vmagwarn(f, va);
 	va_end(va);
-	(void) fputc('\n', stderr);
 }
 
 file_protected const char *
@@ -289,6 +321,7 @@ file_fmtdatetime(char *buf, size_t bsize, uint64_t v, int flags)
 		goto out;
 
 	if (flags & FILE_T_LOCAL) {
+		tzset();
 		tm = localtime_r(&t, &tmz);
 	} else {
 		tm = gmtime_r(&t, &tmz);

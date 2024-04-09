@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: archive,v 1.193 2023/07/27 17:55:58 christos Exp $
+# $File: archive,v 1.197 2024/02/02 22:56:48 christos Exp $
 # archive:  file(1) magic for archive formats (see also "msdos" for self-
 #           extracting compressed archives)
 #
@@ -25,6 +25,11 @@
 >>>>>>155 ubyte&0xDF	=0	
 # space or ascii digit 0 at start of check sum
 >>>>>>>148	ubyte&0xEF	=0x20	
+# check for specific 1st member name that indicates other mime type and file name suffix
+>>>>>>>>0	string		TpmEmuTpms/permall
+# maybe also look for 2nd tar member efi/nvram containing UEFI variables part
+#>>>>>>>>>512	search/0x1800	efi/nvram\0		EFI_PART_FOUND
+>>>>>>>>>0	use	tar-nvram
 # FOR DEBUGGING: 
 #>>>>>>>>0	regex		\^[0-9]{2,4}[.](png|jpg|jpeg|tif|tiff|gif|bmp)	NAME "%s"
 # check for 1st image main name with digits used for sorting
@@ -34,9 +39,24 @@
 # check for 1st member name with ovf suffix
 >>>>>>>>0	regex		\^.{1,96}[.](ovf)
 >>>>>>>>>0	use	tar-ova
-# if 1st member name without digits and without used image suffix and without *.ovf then it is a TAR archive
+# look for relative directory ./var/ or ./lte/ as 1st member name that indicates AVM firmware with other file name suffix
+>>>>>>>>0	ubequad&0xFFffE5eaE8ffFFff	0x2e2f6460602f0000
+>>>>>>>>>0	use	tar-avm
+# maybe look for AVM specific 2nd name entry
+# >>>>>>>>>517	string		/content\0	content~
+# >>>>>>>>>>0	use	tar-avm
+# >>>>>>>>>517	string		/install\0	install~
+# >>>>>>>>>>0	use	tar-avm
+# >>>>>>>>>517	string		/chksum\0	chksum~
+# >>>>>>>>>>0	use	tar-avm
+# >>>>>>>>>517	string		/modfw.nfo\0	modfw~
+# >>>>>>>>>>0	use	tar-avm
+# if 1st member name without digits and without used image suffix, without *.ovf,
+# ./var/ , ./lte/ and TpmEmuTpms/ then it is a pure TAR archive
 >>>>>>>>0	default		x
 >>>>>>>>>0	use	tar-file
+# Note:	called "TAR - Tape ARchive" by TrID, "Tape Archive Format" by DROID via PUID x-fmt/265
+#	and "Tar archive" by shared MIME-info database from freedesktop.org
 #	minimal check and then display tar archive information which can also be
 #	embedded inside others like Android Backup, Clam AntiVirus database
 0	name		tar-file
@@ -86,7 +106,11 @@
 >>261	default		x		tar archive (unknown ustar)
 !:mime	application/x-ustar
 !:ext	tar/ustar
-# type flag of 1st tar archive member
+# show information for 1st tar archive member
+>0	use	tar-entry
+#	display information of tar archive member (file type, name, permissions, user, group)
+0	name		tar-entry
+# type flag of tar archive member
 #>156	ubyte		x		\b, %c-type
 >156	ubyte		x		
 >>156	ubyte		0		\b, file
@@ -142,7 +166,7 @@
 >>265	string		>\0		\b, user %-.32s
 # group name null terminated
 >>297	string		>\0		\b, group %-.32s
-# device major minor if not zero
+# device major minor if not zero (binary or ASCII)
 >>329	ubequad&0xCFCFCFCFcFcFcFdf	!0
 >>>329	string		x		\b, devmaj %-.7s
 >>337	ubequad&0xCFCFCFCFcFcFcFdf	!0
@@ -157,6 +181,25 @@
 >>508	default		x		
 # padding[255] in old tar sometimes comment field
 >>>257	string		>\0		\b, comment: %-.40s
+# Summary:	VirtualBox NvramFile with UEFI variables packed inside TAR archive
+# URL:		hhttps://www.virtualbox.org/manual/ch08.html#vboxmanage-modifynvram
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/n/nvram-virtualbox-tar.trid.xml
+# Note:		called "VirtualBox saved (U)EFI BIOS settings (TAR) by TrID and
+#		verified by 7-Zip `7z l -ttar Mint-21.1.nvram` and
+#		VirtualBox `VBoxManage modifynvram "Mint-21.1" listvars`
+0	name		tar-nvram
+# 
+>0	string		x		VirtualBox NVRAM file
+#!:mime	application/x-gtar
+!:mime	application/x-virtualbox-nvram
+!:ext	nvram
+# first name[100] like: TpmEmuTpms/permall
+>0	use	tar-entry
+# 2nd tar member efi/nvram contains UEFI variables part described by ./virtual
+>512	search/0x1800/s	efi/nvram\0
+>>&0	use	tar-entry
+# 2nd tar member efi/nvram content could be described by ./virtual
+#>>&512	indirect	x
 # Summary:	Comic Book Archive *.CBT with TAR format
 # URL:		https://en.wikipedia.org/wiki/Comic_book_archive
 #		http://fileformats.archiveteam.org/wiki/Comic_Book_Archive
@@ -169,7 +212,8 @@
 !:ext	cbt
 # name[100] probably like: 19.jpg 0001.png 0002.png
 # or maybe like ComicInfo.xml
->0	string		>\0		\b, 1st image %-.60s
+#>0	string		>\0		\b, 1st image %-.60s
+>0	use	tar-entry
 # Summary:	Open Virtualization Format *.OVF with disk images and more packed as TAR archive *.OVA
 # From:		Joerg Jenderek
 # URL:		https://en.wikipedia.org/wiki/Open_Virtualization_Format
@@ -184,7 +228,35 @@
 !:mime	application/x-virtualbox-ova
 !:ext	ova
 # assuming name[100] like: DOS-0.9.ovf FreeDOS_1.ovf Win98SE_DE.ovf
->0	string		>\0		\b, with %-.60s
+#>0	string		>\0		\b, with %-.60s
+>0	use	tar-entry
+# Summary:	AVM firmware (FRITZ!OS) for the FRITZ!Box (router)
+# From:		Joerg Jenderek
+# URL:		https://en.wikipedia.org/wiki/Fritz!Box
+#		https://www.redteam-pentesting.de/de/advisories/rt-sa-2014-010/-avm-fritz-box-firmware-signature-bypass
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/i/image-avm.trid.xml
+# Note:		verified by 7-Zip `7z l -ttar FRITZ.Box_4040-07.57.image`
+0	name		tar-avm
+>0	string		x		AVM FRITZ!Box firmware
+#!:mime	application/x-gtar
+!:mime	application/x-avm-image
+!:ext	image
+# tar member ./var/content starts with line like "Product=Fritz_Box_HW227 (FRITZ!Box 4040)"
+>>1024	search/512	Product=Fritz_Box_
+>>>&0	string		x		%s
+# version string like: 07.57 07.58
+>>>1044	search		Version=	\b, version
+>>>>&0	string		x		%s
+# product phrase too far behind (dozen MB) in many samples like: FRITZ.Box_4040-07.12.image FRITZ.Box_6820v3_LTE-07.57.image
+# so try to look for other characteristic foo
+# >>1024	default		x		OTHER_PATTERN!
+# >>>1023	search		AVM_PATTERN	PATTERNfound
+# first name[100] like: ./var/ ./lte/ 
+>0	use	tar-entry
+# if 1st entry is directory then show 2nd entry
+>156	ubyte		0x35
+# 2nd tar member name like: ./var/content (often ) ./var/install ./var/chksum ./lte/modfw.nfo
+>>512	use	tar-entry
 
 # Incremental snapshot gnu-tar format from:
 # https://www.gnu.org/software/tar/manual/html_node/Snapshot-Files.html
@@ -957,7 +1029,45 @@
 # ZET
 0	string	OZ\xc3\x9d ZET archive data
 # TSComp
-0	string	\x65\x5d\x13\x8c\x08\x01\x03\x00 TSComp archive data
+# Update:	Joerg Jenderek 2023 Nov 
+# URL:		http://fileformats.archiveteam.org/wiki/TSComp
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/t/tscomp.trid.xml
+#		https://entropymine.com/deark/releases/deark-1.6.5.tar.gz
+#		deark-1.6.5/modules/installshld.c 
+# Note:		called "TSComp compressed data" by TrID
+#		verified by command like `deark -m tscomp -l -d2 MAKERRES.DL$`
+#		The "13" might be a version number. The "8c" is a mystery
+0	string	\x65\x5d\x13\x8c\x08\x01\x03\x00 TSComp archive
+#!:mime	application/octet-stream
+!:mime	application/x-tscomp-compressed
+# filename style: 0~old version 1~without wildcard 2~with wildcard
+#>0x08	ubyte		x				\b, filename style %u
+>0x08	ubyte		0				data, filename style 0
+# no example found
+!:ext	??$
+#>0x08	ubyte		1				data, without wildcard
+>0x08	ubyte		1				data
+# for single-file archives, often the last letter of the filename extension is changed to "$"; but also name like: BUILD3.BM!
+!:ext	??$/??!
+>0x08	ubyte		2				data, with wildcard
+# for multi-file archives common extensions seem to be .lib and .cmp, but also names like: SAMPMIF$ OTDATA.$$$ TWOFILES.TSC WIN.PAK 
+!:ext	/lib/cmp/$$$/tsc/pak
+# fnlen; pascal string length; original 1st file name like: CHFORMAT.MML
+>0x1c	pstring		x				\b, %s
+# md->fi->timestamp
+>0x16	lemsdosdate	x				\b, modified %s
+>0x18	lemsdostime	x				%s
+# 1st compressed size: like 180 (SAMPMML$$)
+>0x0E	ulelong		x				\b, compressed size %u
+# de_dbg_indent(c, 1): like: 12h
+#>0x0d	ubyte		x				b, at 0xD %#x
+# like: 0
+#>0x1A	ubeshort	x				\b, at 0x1A %#x
+# 2nd member offset
+#>0x12	ulelong		x				\b, next offset %#x
+>0x12	ulelong		>0
+# original 2nd archive member name like: FORMATS.MML
+>>(0x12.l+15)	pstring	x				\b, %s ...
 # ARQ
 0	string	gW\4\1 ARQ archive data
 # Squash
@@ -1622,6 +1732,18 @@
 0	string		PK\x07\x08PK\x03\x04	Zip multi-volume archive data, at least PKZIP v2.50 to extract
 !:mime	application/zip
 !:ext zip/cbz
+
+
+# IOS/IPadOS IPA file (Zip archive)
+0	string		PK\003\004
+!:strength +1
+# Starts with Payload (file name length = 19)
+>26	uleshort	8
+>>30  	string		Payload		IOS/iPadOS IPA file
+>>>&26  search/6000	PK\003\004
+>>>>&34	string		x	containing %s
+!:mime	application/x-ios-app
+!:ext	ipa
 
 # Android APK file (Zip archive)
 0	string		PK\003\004

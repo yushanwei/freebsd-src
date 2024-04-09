@@ -1,16 +1,17 @@
 
 #------------------------------------------------------------------------------
-# $File: sgml,v 1.48 2023/01/18 16:10:21 christos Exp $
+# $File: sgml,v 1.51 2024/04/08 17:58:42 christos Exp $
 # Type:	SVG Vectorial Graphics
 # From:	Noel Torres <tecnico@ejerciciosresueltos.com>
-0	string		\<?xml\ version=
+0	string/bt	\<?xml\ version=
 >14	regex		['"\ \t]*[0-9.]+['"\ \t]*
 >>19	search/4096	\<svg			SVG Scalable Vector Graphics image
+!:strength +50
 !:mime	image/svg+xml
 !:ext   svg
 >>19	search/4096	\<gnc-v2		GnuCash file
 !:mime	application/x-gnucash
-0	string		\<svg			SVG Scalable Vector Graphics image
+0	string/bt	\<svg			SVG Scalable Vector Graphics image
 !:mime	image/svg+xml
 !:ext   svg
 
@@ -31,15 +32,24 @@
 0	string/t		\<?xml\ version="
 >19	search/4096/cWbt	\<!doctype\ html	XHTML document text
 >>15	string		>\0	(version %.3s)
-!:mime	text/html
+!:strength + 15
+!:mime	application/xhtml+xml
 0	string/t		\<?xml\ version='
 >19	search/4096/cWbt	\<!doctype\ html	XHTML document text
 >>15	string		>\0	(version %.3s)
-!:mime	text/html
+!:strength + 15
+!:mime	application/xhtml+xml
 0	string/t		\<?xml\ version="
->19	search/4096/cWbt	\<html	broken XHTML document text
+>19	search/4096/cWbt	\<html\ xmlns=		XHTML document text
 >>15	string		>\0	(version %.3s)
-!:mime	text/html
+!:strength + 15
+!:mime	application/xhtml+xml
+0	string/t		\<?xml\ version='
+>19	search/4096/cWbt	\<html\ xmlns=		XHTML document text
+>>15	string		>\0	(version %.3s)
+!:strength + 15
+!:mime	application/xhtml+xml
+
 
 #------------------------------------------------------------------------------
 # sgml:  file(1) magic for Standard Generalized Markup Language
@@ -107,6 +117,13 @@
 0	search/4096/cwt	\<a\ href=		HTML document text
 !:mime	text/html
 !:strength + 15
+
+# Microsoft HTML Application (HTA)
+# https://learn.microsoft.com/en-us/previous-versions//ms536496(v=vs.85)
+0	search/4096/cWt	\<hta:application\ 	Microsoft HTML Application (HTA)
+!:mime	application/hta
+!:ext	hta
+!:strength + 50
 
 # Extensible markup language (XML), a subset of SGML
 # from Marc Prud'hommeaux (marc@apocalypse.org)
