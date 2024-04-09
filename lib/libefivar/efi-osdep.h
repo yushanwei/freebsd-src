@@ -104,6 +104,8 @@ typedef void VOID;
 #define MDE_CPU_AARCH64
 #elif defined(__riscv)
 #define MDE_CPU_RISCV64
+#elif defined(__loongarch__)
+#define MDE_CPU_LOONGARCH64
 #endif
 /* FreeBSD doesn't have/use MDE_CPU_EBC or MDE_CPU_IPF (ia64) */
 
