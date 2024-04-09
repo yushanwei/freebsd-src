@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: riff,v 1.45 2022/07/24 23:47:49 christos Exp $
+# $File: riff,v 1.48 2023/08/08 19:37:04 christos Exp $
 # riff:  file(1) magic for RIFF format
 # See
 #
@@ -332,6 +332,35 @@
 # MORE TESTS NEEDED HERE!
 #>>>0	use		corel-des
 #>>>0	use		corel-draw
+# From:		Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/SHW_(Corel)
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/s/shw-corel.trid.xml
+# Note:		called "CorelSHOW presentation (v4)" by TrID
+#		and "Corel Presentation" by DROID via PUID fmt/877
+>8	string		shw4		\b, CorelSHOW presentation, version 4
+#!:mime	application/octet-stream
+!:mime	application/x-corel-shw
+!:ext	shw
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/s/shw-corel-5.trid.xml
+# Note:		called "CorelSHOW presentation (v5)" by TrID
+>8	string		shw5		\b, CorelSHOW presentation, version 5
+#!:mime	application/octet-stream
+!:mime	application/x-corel-shw
+!:ext	shw
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/s/shb-corel.trid.xml
+# Note:		called "CorelSHOW Background (v5)" by TrID
+>8	string		shl5		\b, CorelSHOW Background, version 5
+#!:mime	application/octet-stream
+!:mime	application/x-corel-shb
+# GRR: no example
+!:ext	shb
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/s/shr-corel.trid.xml
+# Note:		called "CorelSHOW player data (v5)" by TrID
+>8	string		shr5		\b, CorelSHOW player data, version 5
+#!:mime	application/octet-stream
+!:mime	application/x-corel-shr
+# GRR: no example
+!:ext	shr
 >8	string		NUNDROOT	\b, Steinberg CuBase
 # From:		Joerg Jenderek
 # URL:		http://fileformats.archiveteam.org/wiki/MIDI_Instrument_Definition_File
@@ -354,6 +383,17 @@
 >>0x31	search/256	inst		by
 # probably manufacture name like: "Unspecified Company" "NVidia Corporation"
 >>>&0x24	string	x		"%s"
+# From:		Joerg Jenderek
+# URL:		https://en.wikipedia.org/wiki/Microsoft_Flight_Simulator
+# Reference:	https://www.fsdeveloper.com/wiki/index.php?title=MDL_file_format_(FSX)
+#		http://mark0.net/download/triddefs_xml.7z/defs/m/mdl-fs-gen.trid.xml
+# Note:		called "Microsoft Flight Simulator 3D model (generic)" by TrID
+>8	string		MDL
+>>12	string		MDLH		\b, Microsoft Flight Simulator 3D model
+#!:mime	application/x-riff
+!:mime	application/x-ms-mdl
+!:ext	mdl
+#>>>8	string		MDL8		\b, version 8?
 # AVI == Audio Video Interleave
 # Reference:	http://fileformats.archiveteam.org/wiki/AVI
 >8	string		AVI\040		\b, AVI
@@ -649,6 +689,22 @@
 >8      string          TRID            \b, TrID defs package
 !:mime	application/x-trid-trd
 !:ext	trd
+# From:		Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/Easy_CD_Creator
+#		https://en.wikipedia.org/wiki/Roxio
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/i/img-cif.trid.xml
+# Note:		called "Easy CD Creator disk image" by TrID,
+#		"Adaptec CD Image File" by Adaptec CD Creator 2.1.082 1995-1996 and
+#		"Easy CD/DVD Creator image" by PowerISO 8.5
+>8      string          imag            \b, Easy CD Creator disk image
+#!:mime	application/octet-stream
+#!:mime	application/x-riff
+!:mime	application/x-corel-cif
+!:ext	cif
+# contains also 2 strings disc info
+# look for ISO 9660 CD-ROM tag handled by ./filesystems
+>>32769	search/4565/s	CD001	\b; with
+>>>&-32769	use	cdrom
 # From:		Joerg Jenderek
 # URL:		https://en.wikipedia.org/wiki/CorelDRAW
 # Reference:	http://fileformats.archiveteam.org/wiki/CorelDRAW

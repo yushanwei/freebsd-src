@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: animation,v 1.94 2023/06/16 20:06:50 christos Exp $
+# $File: animation,v 1.97 2024/02/11 15:33:43 christos Exp $
 # animation:  file(1) magic for animation/movie formats
 #
 # animation formats
@@ -927,15 +927,12 @@
 #
 # from Oskar Schirmer <schirmer@scara.com> Feb 3, 2001 (ISO 13818.1)
 # syncbyte      8 bit	0x47
-# error_ind     1 bit	-
-# payload_start 1 bit	1
-# priority      1 bit	-
-# PID          13 bit	0x0000
-# scrambling    2 bit	-
-# adaptfld_ctrl 2 bit	1 or 3
-# conti_count   4 bit	-
-0	belong&0xFF5FFF10	0x47400010
->188	byte			0x47		MPEG transport stream data
+# 188 bytes per packet
+0		byte			0x47
+>188	byte			0x47
+>>376	byte			0x47
+>>>564	byte			0x47
+>>>>752	byte			0x47		MPEG transport stream data
 !:mime  video/MP2T
 !:ext	ts
 
@@ -943,8 +940,11 @@
 # From: Alexandre Iooss <erdnaxe@crans.org>
 # URL: https://en.wikipedia.org/wiki/MPEG_transport_stream
 # Note: similar to ISO 13818.1 but with 4 extra bytes per packets
-4	belong&0xFF5FFF10	=0x47400010
->196	byte			=0x47		BDAV MPEG-2 Transport Stream (M2TS)
+4		byte			0x47
+>196	byte			0x47
+>>388	byte			0x47
+>>>580	byte			0x47
+>>>>772	byte			0x47		BDAV MPEG-2 Transport Stream (M2TS)
 !:mime	video/MP2T
 !:ext	m2ts/mts
 
@@ -1204,3 +1204,47 @@
 >12	leshort x	\b, %d
 >14	leshort x	\bx%d
 >24	lelong	>0	\b, %d frames
+
+
+# libplacebo cache file
+# https://libplacebo.org
+0	string	pl_cache	libplacebo cache
+>8	ulelong	x		\b, version %u
+>12	ulelong	=0		\b, empty
+>12	ulelong	=1		\b, 1 entry
+>12	ulelong	>1		\b, %u entries
+
+>4	byte	1		\b, version 3.00.00
+>4	byte	2		\b, version 3.03.00
+>4	byte	3		\b, version 4.00.00
+>4	byte	4		\b, version 4.02.00
+>4	byte	5		\b, version 5.00.00
+
+# live2d: file(1) magic for Live2D Cubism file formats
+# https://www.live2d.com/en/
+0	string/4	MOC3	Live2D Cubism MOC3
+>4	byte	0	\b, SDK version invalid/unknown (%d)
+>4	byte	1	\b, SDK version 3.0.00 - 3.2.07 (%d)
+>4	byte	2	\b, SDK version 3.3.00 - 3.3.03 (%d)
+>4	byte	3	\b, SDK version 4.0.00 - 4.1.05 (%d)
+>4	byte	4	\b, SDK version 4.2.00 - 4.2.02 (%d)
+>4	byte	5	\b, SDK version 5.0.00 (%d)
+>4	byte	>5	\b, SDK version unknown (%d)
+>5	byte	0	\b, little endian
+>5	byte	>0	\b, big endian
+!:mime	application/x-moc3-data
+!:ext	moc3
+
+0	string/4	CAFF	Live2D Cubism archive
+>4	ubyte	x	version %d
+>&0	ubyte	x	\b.%d
+>&1	ubyte	x	\b.%d
+>7	string/4	=----	\b, standard format
+>7	string/4	!----	\b, unknown format (%.4s)
+>11	ubyte	x	version %d
+>&0	ubyte	x	\b.%d
+>&1	ubyte	x	\b.%d
+>14	belong	=0	\b, no obfuscation
+>14	belong	!0	\b, XOR obfuscation key %d
+!:mime	application/x-cubism-archive
+!:ext	cmo3/can3
