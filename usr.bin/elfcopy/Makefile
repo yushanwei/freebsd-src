@@ -7,11 +7,7 @@ ELFCOPYDIR=	${ELFTCDIR}/elfcopy
 
 .PATH: ${ELFCOPYDIR}
 
-PROG=	objcopy
-objcopy.1: elfcopy.1
-	sed -e 's/\.Dt ELFCOPY 1/.Dt OBJCOPY 1/' \
-	    -e '/\.Nm elfcopy ,/d' < ${.ALLSRC} > ${.TARGET}
-CLEANFILES+= objcopy.1
+PROG=	elfcopy
 
 SRCS=	archive.c ascii.c binary.c main.c pe.c sections.c segments.c symbols.c
 
@@ -22,9 +18,8 @@ LIBADD=	archive elftc elf pe
 CFLAGS+=-I${ELFTCDIR}/libelftc -I${ELFTCDIR}/libpe -I${ELFTCDIR}/common
 CFLAGS+=-DWITH_PE=1
 
-MAN=	${PROG}.1 strip.1
+MAN=	${PROG}.1
 
-LINKS=	${BINDIR}/${PROG} ${BINDIR}/strip
 
 # This same hack is in lib/libelf/Makefile and usr.bin/readelf/Makefile
 # We need to link against the correct version of these files. One
