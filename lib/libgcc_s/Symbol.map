@@ -16,7 +16,7 @@ GCC_3.0 {
 	__cmpdi2;
 #ifndef __arm__
 	__deregister_frame;
-#if !defined(__aarch64__) && !defined(__riscv)
+#if !defined(__aarch64__) && !defined(__riscv) && !defined(__loongarch__)
 	__deregister_frame_info;
 	__deregister_frame_info_bases;
 #endif
@@ -53,7 +53,7 @@ GCC_3.0 {
 	__negvsi2;
 #ifndef __arm__
 	__register_frame;
-#if !defined(__aarch64__) && !defined(__riscv)
+#if !defined(__aarch64__) && !defined(__riscv) && !defined(__loongarch__)
 	__register_frame_info;
 	__register_frame_info_bases;
 	__register_frame_info_table;
@@ -192,7 +192,7 @@ GCC_4.3.0 {
 };
 
 GCC_4.6.0 {
-#if defined(__aarch64__) || defined(__riscv)
+#if defined(__aarch64__) || defined(__riscv) || defined(__loongarch__)
 	__addtf3;
 	__cmptf2;
 	__divtf3;
