@@ -62,10 +62,7 @@ coff_head:
 	.long	0				/* No symbol table */
 	.long	0				/* No symbols */
 	.short	section_table - optional_header	/* Optional header size */
-        .short  0x20d                           // Characteristics.
-                                                // IMAGE_FILE_DEBUG_STRIPPED |
-                                                // IMAGE_FILE_EXECUTABLE_IMAGE |
-                                                // IMAGE_FILE_LINE_NUMS_STRIPPED
+        .short  0
 optional_header:
 	.short	0x020b				/* PE32+ (64-bit addressing) */
 	.byte	0x02				/* Major linker version */
