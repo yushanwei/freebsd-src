@@ -348,7 +348,8 @@ CFLAGS.gcc+= -mabi=spe -mfloat-gprs=double -Wa,-me500
 .endif
 
 .if ${MACHINE_CPUARCH} == "loongarch"
-CFLAGS += -march=la464 -mabi=lp64d
+CPUCFLAGS = -march=loongarch64 -mabi=lp64d
+LDFLAGS+= -mabi=lp64d
 .endif
 
 .if ${MACHINE_CPUARCH} == "riscv"
