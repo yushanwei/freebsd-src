@@ -34,26 +34,23 @@
  */
 
 #include <machine/asm.h>
-ENTRY(_start)
 
+ENTRY(_start)
 /* Terminate call stack by noting ra is undefined.  Use a dummy
    .cfi_label to force starting the FDE.  */
-        or              a5, a0, zero /* rtld_fini */
-
-        la.pcrel	a0, t0, main
-        REG_L		a1, sp, 0
-        INT_ADDI	a2, sp, SZREG
+	.cfi_label .Ldummy
+        .cfi_undefined 1
+	move		a3, a2    	# cleanup
+	addi		a1, a0, 8	# argv
+	ld.d		a0, a0, 0	# argc
+	slli.d		t0, a0, 3	# argv + argc * 8 => argv end
+	add.d		a2, a1, t0	# env is after argv
+	addi.d		a2, a2, 8	# argv is null terminated
 
         /* Adjust $sp for 16-aligned */
         BSTRINS         sp, zero, 3, 0
-
-        move            a3, zero /* used to be init */
-        move            a4, zero /* used to be fini */
-        or              a6, sp, zero /* stack_end */
-
-        la.pcrel        ra, t0, __start
+	/* __start(argc, argv, env, cleanup) */
+        la              ra, t0, __start
         jirl            ra, ra, 0
-
 END(_start)
-
 	.section .note.GNU-stack,"",%progbits

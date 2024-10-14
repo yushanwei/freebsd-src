@@ -49,3 +49,9 @@ __asm__("eprol:");
 	__libc_start1(argc, argv, env, cleanup, main);
 #endif
 }
+
+#ifdef GCRT
+__asm__(".text");
+__asm__("eprol:");
+__asm__(".previous");
+#endif
