@@ -41,12 +41,10 @@ ENTRY(__sys_vfork)
 	move	a2, ra
 
 	_SYSCALL(vfork)
-	bnez	t0, 1f
+	bnez	ra, 1f
 	INT_ADDI	a1, a1, -1
 	and	a0, a0, a1
 	move	ra, a2
-
 	ret
-1:	la.pcrel	t1, cerror
-	jr	t1
+1:	b	cerror
 END(__sys_vfork)
