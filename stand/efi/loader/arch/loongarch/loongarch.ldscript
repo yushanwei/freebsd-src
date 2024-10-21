@@ -1,5 +1,5 @@
-OUTPUT_FORMAT("elf64-littleriscv", "elf64-littleriscv", "elf64-littleriscv")
-OUTPUT_ARCH(riscv64)
+OUTPUT_FORMAT("elf64-loongarch", "elf64-loongarch", "elf64-loongarch")
+OUTPUT_ARCH(loongarch64)
 ENTRY(_start)
 SECTIONS
 {
@@ -13,7 +13,7 @@ SECTIONS
     *(.gnu.warning)
     *(.plt)
   } =0x9090
-  . = ALIGN(16);
+  . = ALIGN(4096);
   .data		: {
     *(.rodata .rodata.* .gnu.linkonce.r.*)
     *(.rodata1)
@@ -24,17 +24,17 @@ SECTIONS
     *(.data1)
     *(.plabel)
 
-    . = ALIGN(16);
+    . = ALIGN(4096);
     __bss_start = .;
     *(.sbss .sbss.* .gnu.linkonce.sb.*)
     *(.scommon)
     *(.dynbss)
     *(.bss *.bss.*)
     *(COMMON)
-    . = ALIGN(16);
+    . = ALIGN(4096);
     __bss_end = .;
   }
-  . = ALIGN(16);
+  . = ALIGN(4096);
   .sdata	: {
     /*
      * u-boot expects the gp register to be untouched by the EFI payload, so we
@@ -46,9 +46,9 @@ SECTIONS
     *(dynsbss)
     *(.scommon)
   }
-  . = ALIGN(16);
+  . = ALIGN(4096);
   .dynamic	: { *(.dynamic) }
-  . = ALIGN(16);
+  . = ALIGN(4096);
   .rela.dyn	: {
     *(.rela.text .rela.text.* .rela.gnu.linkonce.t.*)
     *(.rela.rodata .rela.rodata.* .rela.gnu.linkonce.r.*)
@@ -63,9 +63,9 @@ SECTIONS
     *(.relset_*)
     *(.rela.dyn .rela.dyn.*)
   }
-  . = ALIGN(16);
+  . = ALIGN(4096);
   .reloc	: { *(.reloc) }
-  . = ALIGN(16);
+  . = ALIGN(4096);
   .dynsym	: { *(.dynsym) }
   _edata = .;
 
