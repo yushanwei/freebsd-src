@@ -1,0 +1,29 @@
+# Options used when building app-specific efi components
+# See conf/kern.mk for the correct set of these
+CFLAGS+=	-Wformat
+LDFLAGS+=	-nostdlib
+EFI_TARGET?=	binary
+
+.if ${MACHINE_CPUARCH} == "amd64"
+CFLAGS+=	-fshort-wchar
+CFLAGS+=	-mno-red-zone
+.if ${DO32:U0} == 1
+EFI_TARGET=	efi-app-ia32
+.else
+EFI_TARGET=	efi-app-x86_64
+.endif
+.elif ${MACHINE_CPUARCH} == "aarch64"
+CFLAGS+=	-fshort-wchar
+CFLAGS+=	-fPIC
+.elif ${MACHINE_CPUARCH} == "arm"
+CFLAGS+=	-fPIC
+.elif ${MACHINE_CPUARCH} == "loongarch"
+CFLAGS+=	-fshort-wchar -fPIC
+EFI_TARGET=	efi-app-loongarch64
+.endif
+
+# Arbitrarily set the PE/COFF header timestamps to 1 Jan 2024 00:00:00
+# for build reproducibility.
+SOURCE_DATE_EPOCH?=1704067200
+
+.include "../Makefile.inc"
