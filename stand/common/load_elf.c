@@ -212,7 +212,7 @@ static int elf_section_header_convert(const Elf_Ehdr *ehdr, Elf_Shdr *shdr)
 }
 #endif
 
-#if defined(__amd64__) || (defined(__i386__) && defined(EFI))
+#if defined(__loongarch__) ||  defined(__amd64__) || (defined(__i386__) && defined(EFI))
 static bool
 is_kernphys_relocatable(elf_file_t ef)
 {
@@ -484,7 +484,7 @@ __elfN(loadfile_raw)(char *filename, uint64_t dest,
 	/* Load OK, return module pointer */
 	*result = (struct preloaded_file *)fp;
 	err = 0;
-#if defined(__amd64__) || (defined(__i386__) && defined(EFI))
+#if defined(__loongarch__) || defined(__amd64__) || (defined(__i386__) && defined(EFI))
 	fp->f_kernphys_relocatable = multiboot || is_kernphys_relocatable(&ef);
 #endif
 #if defined(__i386__) && !defined(EFI)
@@ -611,6 +611,8 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, uint64_t off)
 		if (module_verbose >= MODULE_VERBOSE_FULL)
 			printf("ehdr->e_entry 0x%jx, va<->pa off %llx\n",
 			    (uintmax_t)ehdr->e_entry, off);
+#elif defined(__loongarch__)
+		off = 0;
 #else
 		off = 0;	/* other archs use direct mapped kernels */
 #endif
