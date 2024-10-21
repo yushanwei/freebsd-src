@@ -189,7 +189,7 @@ __elfN(reloc)(struct elf_file *ef, symaddr_fn *symaddr, const void *reldata,
 	}
 
 	return (0);
-#elif defined(__powerpc__) || defined(__riscv)
+#elif defined(__powerpc__) || defined(__riscv) || defined(__loongarch__)
 	Elf_Size w;
 	const Elf_Rela *rela;
 
@@ -203,6 +203,8 @@ __elfN(reloc)(struct elf_file *ef, symaddr_fn *symaddr, const void *reldata,
 			case R_PPC_RELATIVE:
 #elif defined(__riscv)
 			case R_RISCV_RELATIVE:
+#elif defined(__loongarch__)
+			case R_LARCH_RELATIVE:
 #endif
 				w = relbase + rela->r_addend;
 				bcopy(&w, (u_char *)data + (relbase +

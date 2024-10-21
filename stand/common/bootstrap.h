@@ -239,7 +239,7 @@ struct preloaded_file
 	size_t f_size;		/* file size */
 	struct kernel_module	*f_modules;	/* list of modules if any */
 	struct preloaded_file	*f_next;	/* next file */
-#if defined(__amd64__) || (defined(__i386__) && defined(EFI))
+#if defined(__loongarch__) || defined(__amd64__) || (defined(__i386__) && defined(EFI))
 	bool			f_kernphys_relocatable;
 #endif
 #if defined(__i386__) && !defined(EFI)
