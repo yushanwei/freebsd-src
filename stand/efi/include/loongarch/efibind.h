@@ -26,6 +26,62 @@ Revision History
 
 #pragma pack()
 
+#ifdef __FreeBSD__
+#include <sys/stdint.h>
+#else
+//
+// Basic int types of various widths
+//
+
+#if (__STDC_VERSION__ < 199901L )
+
+    // No ANSI C 1999/2000 stdint.h integer width declarations 
+
+    #ifdef _MSC_EXTENSIONS
+
+        // Use Microsoft C compiler integer width declarations 
+
+        typedef unsigned __int64    uint64_t;
+        typedef __int64             int64_t;
+        typedef unsigned __int32    uint32_t;
+        typedef __int32             int32_t;
+        typedef unsigned __int16    uint16_t;
+        typedef __int16             int16_t;
+        typedef unsigned __int8     uint8_t;
+        typedef __int8              int8_t;
+    #else             
+        #ifdef UNIX_LP64
+
+            // Use LP64 programming model from C_FLAGS for integer width declarations 
+
+            typedef unsigned long       uint64_t;
+            typedef long                int64_t;
+            typedef unsigned int        uint32_t;
+            typedef int                 int32_t;
+            typedef unsigned short      uint16_t;
+            typedef short               int16_t;
+            typedef unsigned char       uint8_t;
+            typedef char                int8_t;
+        #else
+
+            // Assume P64 programming model from C_FLAGS for integer width declarations 
+
+            typedef unsigned long long  uint64_t;
+            typedef long long           int64_t;
+            typedef unsigned int        uint32_t;
+            typedef int                 int32_t;
+            typedef unsigned short      uint16_t;
+            typedef short               int16_t;
+            typedef unsigned char       uint8_t;
+            typedef char                int8_t;
+        #endif
+    #endif
+#endif
+#endif	/* __FreeBSD__ */
+
+#undef VOID
+#define VOID    void
+
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // BugBug: Code to debug
 //
@@ -50,7 +106,7 @@ Revision History
 #define BAD_POINTER         0xFBFBFBFBFBFBFBFB
 #define MAX_ADDRESS         0xFFFFFFFFFFFFFFFF
 
-#define BREAKPOINT()  __break(0)
+#define BREAKPOINT()	while (TRUE);
 
 //
 // Pointers must be aligned to these address to function
@@ -94,7 +150,7 @@ Revision History
 
 #define RUNTIME_CODE(a)         alloc_text("rtcode", a)
 #define BEGIN_RUNTIME_DATA()    data_seg("rtdata")
-#define END_RUNTIME_DATA()      data_seg()
+#define END_RUNTIME_DATA()      data_seg("")
 
 #define VOLATILE    volatile
 
@@ -117,7 +173,22 @@ void __mfa (void);
 // one big module.
 //
 
-#define EFI_DRIVER_ENTRY_POINT(InitFunction)
+#define EFI_DRIVER_ENTRY_POINT(InitFunction)    \
+    UINTN                                       \
+    InitializeDriver (                          \
+        VOID    *ImageHandle,                   \
+        VOID    *SystemTable                    \
+        )                                       \
+    {                                           \
+        return InitFunction(ImageHandle,        \
+                SystemTable);                   \
+    }                                           \
+                                                \
+    EFI_STATUS efi_main(                        \
+        EFI_HANDLE image,                       \
+        EFI_SYSTEM_TABLE *systab                \
+        ) __attribute__((weak,                  \
+                alias ("InitializeDriver")));
 
 #define LOAD_INTERNAL_DRIVER(_if, type, name, entry)    \
             (_if)->LoadInternal(type, name, entry)
@@ -138,3 +209,6 @@ void __mfa (void);
 #define INTERFACE_DECL(x) typedef struct x
 #endif
 #endif
+
+#define uefi_call_wrapper(func, va_num, ...) func(__VA_ARGS__)
+#define EFI_FUNCTION
