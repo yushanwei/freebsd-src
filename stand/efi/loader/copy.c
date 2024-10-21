@@ -180,7 +180,7 @@ out:
 
 #define	EFI_STAGING_2M_ALIGN	1
 
-#if defined(__amd64__) || defined(__i386__)
+#if defined(__amd64__) || defined(__i386__) || defined(__loongarch__)
 #define	EFI_STAGING_SLOP	M(8)
 #else
 #define	EFI_STAGING_SLOP	0
@@ -201,7 +201,7 @@ efi_copy_free(void)
 	stage_offset = 0;
 }
 
-#if defined(__amd64__) || defined(__i386__)
+#if defined(__amd64__) || defined(__i386__) || defined(__loongarch__)
 int copy_staging = COPY_STAGING_AUTO;
 
 static int

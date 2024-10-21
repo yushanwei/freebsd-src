@@ -29,8 +29,6 @@ Revision History
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // BugBug: Code to debug
 //
-#define BIT63   0x8000000000000000
-
 #define PLATFORM_IOBASE_ADDRESS   (0xffffc000000 | BIT63)                                               
 #define PORT_TO_MEMD(_Port) (PLATFORM_IOBASE_ADDRESS | ( ( ( (_Port) & 0xfffc) << 10 ) | ( (_Port) & 0x0fff) ) )
                                                                            
@@ -43,7 +41,6 @@ Revision History
 // BugBug: End Debug Code!!!
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-#define EFIERR(a)           (0x8000000000000000 | a)
 #define EFI_ERROR_MASK      0x8000000000000000
 #define EFIERR_OEM(a)       (0xc000000000000000 | a)      
 
@@ -57,12 +54,6 @@ Revision History
 //  you will get an alignment fault if this value is less than 8
 //
 #define MIN_ALIGNMENT_SIZE  8
-
-#define ALIGN_VARIABLE(Value , Adjustment) \
-            (UINTN) Adjustment = 0; \
-            if((UINTN)Value % MIN_ALIGNMENT_SIZE) \
-                (UINTN)Adjustment = MIN_ALIGNMENT_SIZE - ((UINTN)Value % MIN_ALIGNMENT_SIZE); \
-            Value = (UINTN)Value + (UINTN)Adjustment
 
 //
 // Define macros to create data structure signatures.
