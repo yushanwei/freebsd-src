@@ -32,7 +32,7 @@
 #include <readin.h>
 #include <efi.h>
 
-#if defined(__amd64__) || defined(__i386__)
+#if defined(__amd64__) || defined(__i386__) || defined(__loongarch__)
 enum {
 	COPY_STAGING_ENABLE,
 	COPY_STAGING_DISABLE,
@@ -59,7 +59,7 @@ void * efi_translate(vm_offset_t ptr);
 void	efi_copy_finish(void);
 void	efi_copy_finish_nop(void);
 
-#if defined(__amd64__) || defined(__i386__)
+#if defined(__amd64__) || defined(__i386__) || defined(__loongarch__)
 /* Need this to setup page tables */
 extern EFI_PHYSICAL_ADDRESS staging;
 #endif
