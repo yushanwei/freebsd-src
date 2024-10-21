@@ -26,7 +26,8 @@ SRCS+=  teken.c
 
 .if ${MACHINE_CPUARCH} == "amd64"
 SRCS+=	time.c
-.elif ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "riscv"
+.elif ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "riscv" || \
+	${MACHINE_CPUARCH} == "loongarch"
 SRCS+=	time_event.c
 .elif ${MACHINE_CPUARCH} == "aarch64"
 SRCS+=	time_arm64.c

@@ -69,8 +69,21 @@ typedef uint32_t   UINTN;
 #undef VOID
 #define VOID    void
 
-
-#include "efibind.h"
+#if defined(__amd64__)
+  #include "amd64/efibind.h"
+#elif defined(__i386__)
+  #include "i386/efibind.h"
+#elif defined(__arm__)
+  #include "arm/efibind.h"
+#elif defined(__arm64__)
+  #include "arm/efibind.h"
+#elif defined (__riscv)
+  #include "riscv/efibind.h"
+#elif defined (__loongarch__)
+  #include "loongarch/efibind.h"
+#else
+  #error Usupported architecture
+#endif
 #include "efidef.h"
 #include "efidevp.h"
 #include "efipciio.h"
