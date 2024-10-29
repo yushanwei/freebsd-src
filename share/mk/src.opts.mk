@@ -275,9 +275,10 @@ __LLVM_TARGETS= \
 		aarch64 \
 		arm \
 		powerpc \
+		loongarch \
 		riscv \
 		x86
-__LLVM_TARGET_FILT=	C/(amd64|i386)/x86/:C/powerpc.*/powerpc/:C/armv[67]/arm/:C/riscv.*/riscv/
+__LLVM_TARGET_FILT= C/(amd64|i386)/x86/:C/powerpc.*/powerpc/:C/armv[67]/arm/:C/loongarch.*/loongarch/:C/riscv.*/riscv/
 .for __llt in ${__LLVM_TARGETS}
 # Default enable the given TARGET's LLVM_TARGET support
 .if ${__T:${__LLVM_TARGET_FILT}} == ${__llt}
@@ -295,13 +296,13 @@ __DEFAULT_NO_OPTIONS+=LLVM_TARGET_BPF LLVM_TARGET_MIPS
 
 .include <bsd.compiler.mk>
 
-.if ${__T} == "i386" || ${__T} == "amd64"
+.if ${__T} == "i386" || ${__T} == "amd64" || ${__T} == "loongarch64"
 __DEFAULT_NO_OPTIONS+=FDT
 .else
 __DEFAULT_YES_OPTIONS+=FDT
 .endif
 
-.if ${__T:Marm*} == "" && ${__T:Mriscv64*} == ""
+.if ${__T:Marm*} == "" && ${__T:Mriscv64*} == "" && ${__T:Mloongarch*} == ""
 __DEFAULT_YES_OPTIONS+=LLDB
 .else
 __DEFAULT_NO_OPTIONS+=LLDB
@@ -311,6 +312,14 @@ __DEFAULT_NO_OPTIONS+=LLDB
 __DEFAULT_YES_OPTIONS+=LIB32
 .else
 BROKEN_OPTIONS+=LIB32
+.endif
+.if ${__T:Mloongarch*}
+# GOOGLETEST cannot currently be compiled on mips due to external circumstances.
+# Notably, the freebsd-gcc port isn't linking in libgcc so we end up trying ot
+# link to a hidden symbol. LLVM would successfully link this in, but some of
+# the mips variants are broken under LLVM until LLVM 10. GOOGLETEST should be
+# marked no longer broken with the switch to LLVM.
+BROKEN_OPTIONS+=GOOGLETEST PROFILE
 .endif
 # EFI doesn't exist on powerpc (well, officially) and doesn't work on i386
 .if ${__T:Mpowerpc*} || ${__T} == "i386"
@@ -362,7 +371,7 @@ BROKEN_OPTIONS+=HYPERV
 .endif
 
 .if ${__T} == "aarch64" || ${__T} == "amd64" || ${__T} == "i386" || \
-    ${__T:Mpowerpc64*} != "" || ${__T:Mriscv64*} != ""
+    ${__T:Mpowerpc64*} != "" || ${__T:Mriscv64*} != ""  || ${__T:Mloongarch64*} != ""
 __DEFAULT_YES_OPTIONS+=OPENMP
 .else
 __DEFAULT_NO_OPTIONS+=OPENMP
