@@ -4,6 +4,7 @@ MACHINE_ARCH_LIST.little = \
 	amd64 \
 	armv7 \
 	i386 \
+	loongarch* \
 	powerpc64le \
 	riscv*
 
