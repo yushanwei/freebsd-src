@@ -39,44 +39,61 @@ static __inline void
 breakpoint(void)
 {
 
-	__asm("ebreak");
+	__asm("break 0");
+}
+
+static __inline u_long
+rdtime(void)
+{
+	u_long val;
+	__asm __volatile(
+		"rdtime.d %0,$zero"
+		: "=r" (val) :
+	);
+	return(val);
 }
 
 #ifdef _KERNEL
 
-#include <machine/riscvreg.h>
+#include <sys/_null.h>
+
+#include <machine/loongarchreg.h>
 
 static __inline register_t
 intr_disable(void)
 {
-	uint64_t ret;
+	uint64_t flags;
 
 	__asm __volatile(
-		"csrrci %0, sstatus, %1"
-		: "=&r" (ret) : "i" (SSTATUS_SIE)
+		"csrxchg %[val], %[mask], %[reg]"
+		: [val] "+r" (flags)
+		: [mask] "r" (CSR_CRMD_IE), [reg] "i" (LOONGARCH_CSR_CRMD)
+		: "memory"
 	);
-
-	return (ret & (SSTATUS_SIE));
+	return (flags);
 }
 
 static __inline void
 intr_restore(register_t s)
 {
-
+	uint32_t flags = s;
+ 
 	__asm __volatile(
-		"csrs sstatus, %0"
-		:: "r" (s)
-	);
+    		"csrxchg %[val], %[mask], %[reg]\n\t"
+    		: [val] "+r" (flags)
+    		: [mask] "r" (CSR_CRMD_IE), [reg] "i" (LOONGARCH_CSR_CRMD)
+    		: "memory");
 }
 
 static __inline void
 intr_enable(void)
 {
-
+	uint64_t flags = CSR_CRMD_IE;
 	__asm __volatile(
-		"csrsi sstatus, %0"
-		:: "i" (SSTATUS_SIE)
-	);
+		"csrxchg %[val], %[mask], %[reg]"
+		: [val] "+r" (flags)
+		: [mask] "r" (CSR_CRMD_IE), [reg] "i" (LOONGARCH_CSR_CRMD)
+		: "memory");
 }
 
 /* NB: fence() is defined as a macro in <machine/atomic.h>. */
@@ -85,21 +102,7 @@ static __inline void
 fence_i(void)
 {
 
-	__asm __volatile("fence.i" ::: "memory");
-}
-
-static __inline void
-sfence_vma(void)
-{
-
-	__asm __volatile("sfence.vma" ::: "memory");
-}
-
-static __inline void
-sfence_vma_page(uintptr_t addr)
-{
-
-	__asm __volatile("sfence.vma %0" :: "r" (addr) : "memory");
+	__asm __volatile("ibar 0" ::);
 }
 
 #define	rdcycle()			csr_read64(cycle)
@@ -107,20 +110,46 @@ sfence_vma_page(uintptr_t addr)
 #define	rdinstret()			csr_read64(instret)
 #define	rdhpmcounter(n)			csr_read64(hpmcounter##n)
 
+/* Cache hooks. */
+
 extern int64_t dcache_line_size;
-extern int64_t icache_line_size;
 
-#define	cpu_dcache_wbinv_range(a, s)
-#define	cpu_dcache_inv_range(a, s)
-#define	cpu_dcache_wb_range(a, s)
+typedef void (*cache_op_t)(vm_offset_t start, vm_size_t size);
 
-#define	cpu_idcache_wbinv_range(a, s)
-#define	cpu_icache_sync_range(a, s)
-#define	cpu_icache_sync_range_checked(a, s)
+struct loongarch_cache_ops {
+	cache_op_t dcache_wbinv_range;
+	cache_op_t dcache_inv_range;
+	cache_op_t dcache_wb_range;
+};
 
-#define	cpufunc_nullop()		riscv_nullop()
+extern struct loongarch_cache_ops cache_ops;
 
-void riscv_nullop(void);
+static __inline void
+cpu_dcache_wbinv_range(vm_offset_t addr, vm_size_t size)
+{
+	if (cache_ops.dcache_wbinv_range != NULL)
+		cache_ops.dcache_wbinv_range(addr, size);
+}
+
+static __inline void
+cpu_dcache_inv_range(vm_offset_t addr, vm_size_t size)
+{
+	if (cache_ops.dcache_inv_range != NULL)
+		cache_ops.dcache_inv_range(addr, size);
+}
+
+static __inline void
+cpu_dcache_wb_range(vm_offset_t addr, vm_size_t size)
+{
+	if (cache_ops.dcache_wb_range != NULL)
+		cache_ops.dcache_wb_range(addr, size);
+}
+
+void loongarch_cache_install_hooks(struct loongarch_cache_ops *, u_int);
+
+#define	cpufunc_nullop()		loongarch_nullop()
+
+void loongarch_nullop(void);
 
 #endif	/* _KERNEL */
 #endif	/* _MACHINE_CPUFUNC_H_ */

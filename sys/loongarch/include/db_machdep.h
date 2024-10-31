@@ -35,7 +35,7 @@
 #ifndef	_MACHINE_DB_MACHDEP_H_
 #define	_MACHINE_DB_MACHDEP_H_
 
-#include <machine/riscvreg.h>
+#include <machine/loongarchreg.h>
 #include <machine/frame.h>
 #include <machine/trap.h>
 

@@ -27,8 +27,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef __RISCV_IFUNC_H
-#define	__RISCV_IFUNC_H
+#ifndef __LOONGARCH_IFUNC_H
+#define	__LOONGARCH_IFUNC_H
 
 #define	DEFINE_IFUNC(qual, ret_type, name, args)			\
     static ret_type (*name##_resolver(void))args __used;		\

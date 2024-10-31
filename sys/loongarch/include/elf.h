@@ -59,29 +59,18 @@ typedef struct {	/* Auxiliary vector entry on initial stack */
 
 __ElfType(Auxinfo);
 
-#define	ELF_ARCH	EM_RISCV
+#define	ELF_ARCH	EM_LOONGARCH
+#define	ELF_ARCH32	EM_LOONGARCH
 
 #define	ELF_MACHINE_OK(x) ((x) == (ELF_ARCH))
 
 /* Define "machine" characteristics */
 #define	ELF_TARG_CLASS	ELFCLASS64
 #define	ELF_TARG_DATA	ELFDATA2LSB
-#define	ELF_TARG_MACH	EM_RISCV
+#define	ELF_TARG_MACH	EM_LOONGARCH
 #define	ELF_TARG_VER	1
 
 /* TODO: set correct value */
 #define	ET_DYN_LOAD_ADDR 0x100000
-
-/* Flags passed in AT_HWCAP */
-#define	HWCAP_ISA_BIT(c)	(1 << ((c) - 'a'))
-#define	HWCAP_ISA_I		HWCAP_ISA_BIT('i')
-#define	HWCAP_ISA_M		HWCAP_ISA_BIT('m')
-#define	HWCAP_ISA_A		HWCAP_ISA_BIT('a')
-#define	HWCAP_ISA_F		HWCAP_ISA_BIT('f')
-#define	HWCAP_ISA_D		HWCAP_ISA_BIT('d')
-#define	HWCAP_ISA_C		HWCAP_ISA_BIT('c')
-#define	HWCAP_ISA_G		\
-    (HWCAP_ISA_I | HWCAP_ISA_M | HWCAP_ISA_A | HWCAP_ISA_F | HWCAP_ISA_D)
-#define	HWCAP_ISA_B		HWCAP_ISA_BIT('b')
 
 #endif /* !_MACHINE_ELF_H_ */
