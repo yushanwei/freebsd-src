@@ -29,11 +29,11 @@
 #ifndef	_MACHINE_MINIDUMP_H_
 #define	_MACHINE_MINIDUMP_H_ 1
 
-#define	MINIDUMP_MAGIC		"minidump FreeBSD/riscv"
+#define	MINIDUMP_MAGIC		"minidump FreeBSD/loongarch"
 #define	MINIDUMP_VERSION	2
 
 struct minidumphdr {
-	char magic[24];
+	char magic[32];
 	uint32_t version;
 	uint32_t msgbufsize;
 	uint32_t bitmapsize;
