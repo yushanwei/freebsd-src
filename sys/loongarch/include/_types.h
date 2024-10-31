@@ -48,15 +48,24 @@ typedef	__int32_t	__int_fast8_t;
 typedef	__int32_t	__int_fast16_t;
 typedef	__int32_t	__int_fast32_t;
 typedef	__int64_t	__int_fast64_t;
-typedef	__int64_t	__register_t;
+#if __loongarch_grlen  == 32
+typedef __int32_t       __register_t;
+typedef __int32_t       __f_register_t;
+typedef __int32_t       __u_register_t;
+typedef	__int32_t	__segsz_t;		/* segment size (in pages) */
+typedef __uint32_t      __vm_paddr_t;
+#elif __loongarch_grlen  == 64
+typedef __int64_t       __register_t;
+typedef __int64_t       __f_register_t;
+typedef __int64_t       __u_register_t;
 typedef	__int64_t	__segsz_t;		/* segment size (in pages) */
+typedef __uint64_t      __vm_paddr_t;
+#endif
 typedef	__int64_t	__time_t;		/* time()... */
 typedef	__uint32_t	__uint_fast8_t;
 typedef	__uint32_t	__uint_fast16_t;
 typedef	__uint32_t	__uint_fast32_t;
 typedef	__uint64_t	__uint_fast64_t;
-typedef	__uint64_t	__u_register_t;
-typedef	__uint64_t	__vm_paddr_t;
 typedef	int		___wchar_t;
 
 #define	__WCHAR_MIN	__INT_MIN	/* min value for a wchar_t */

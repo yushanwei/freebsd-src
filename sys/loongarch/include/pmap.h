@@ -77,7 +77,8 @@ struct pmap {
 	struct mtx		pm_mtx;
 	struct pmap_statistics	pm_stats;	/* pmap statictics */
 	pd_entry_t		*pm_top;	/* top-level page table page */
-	u_long			pm_satp;	/* value for SATP register */
+        u_long                  pm_pgdl;                        /* page global directory base address lower half*/
+        u_long                  pm_pgdh;                        /* page global directory base address higher half*/
 	cpuset_t		pm_active;	/* active on cpus */
 	TAILQ_HEAD(,pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
 	LIST_ENTRY(pmap)	pm_list;	/* List of all pmaps */
@@ -104,6 +105,15 @@ extern struct pmap	kernel_pmap_store;
 #define	PMAP_MTX(pmap)		(&(pmap)->pm_mtx)
 #define	PMAP_TRYLOCK(pmap)	mtx_trylock(&(pmap)->pm_mtx)
 #define	PMAP_UNLOCK(pmap)	mtx_unlock(&(pmap)->pm_mtx)
+
+#define ASID_RESERVED_FOR_PID_0 0
+#define ASID_RESERVED_FOR_EFI   1
+#define ASID_FIRST_AVAILABLE    (ASID_RESERVED_FOR_EFI + 1)
+#define ASID_TO_OPERAND(asid)   ({                                      \
+        KASSERT((asid) != -1, ("invalid ASID"));                        \
+        (uint64_t)(asid) << CSR_ASID_ASID_SHIFT;                    \
+})
+
 
 extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;

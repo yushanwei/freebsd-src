@@ -34,35 +34,16 @@
 
 #ifndef _MACHINE_UCONTEXT_H_
 #define	_MACHINE_UCONTEXT_H_
+#include <machine/reg.h>
 
-struct gpregs {
-	__register_t	gp_ra;
-	__register_t	gp_sp;
-	__register_t	gp_gp;
-	__register_t	gp_tp;
-	__register_t	gp_t[7];
-	__register_t	gp_s[12];
-	__register_t	gp_a[8];
-	__register_t	gp_sepc;
-	__register_t	gp_sstatus;
-};
-
-struct fpregs {
-	__uint64_t	fp_x[32][2];
-	__uint64_t	fp_fcsr;
-	int		fp_flags;
-	int		pad;
-};
-
-struct __mcontext {
-	struct gpregs	mc_gpregs;
-	struct fpregs	mc_fpregs;
+typedef struct {
+	__register_t    mc_pc;
+	struct reg	mc_regs;
+	struct fpreg	mc_fpregs;
 	int		mc_flags;
-#define	_MC_FP_VALID	0x1		/* Set when mc_fpregs has valid data */
-	int		mc_pad;
-	__uint64_t	mc_spare[8];	/* Space for expansion */
-};
-
-typedef struct __mcontext mcontext_t;
+#define _MC_FP_VALID    0x1             /* Set when mc_fpregs has valid data */
+        int             mc_pad;
+	__register_t    mc_spare[8] __attribute__((__aligned__(16)));	/* Space for expansion */
+}mcontext_t;
 
 #endif	/* !_MACHINE_UCONTEXT_H_ */
