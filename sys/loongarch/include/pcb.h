@@ -40,16 +40,27 @@
 struct trapframe;
 
 struct pcb {
-	uint64_t	pcb_ra;		/* Return address */
-	uint64_t	pcb_sp;		/* Stack pointer */
-	uint64_t	pcb_gp;		/* Global pointer */
-	uint64_t	pcb_tp;		/* Thread pointer */
-	uint64_t	pcb_s[12];	/* Saved registers */
-	uint64_t	pcb_x[32][2];	/* Floating point registers */
-	uint64_t	pcb_fcsr;	/* Floating point control reg */
-	uint64_t	pcb_fpflags;	/* Floating point flags */
+	__uint64_t      pcb_ra;             /* return address */
+	__uint64_t	pcb_tp;             /* thread pointer */
+	__uint64_t	pcb_sp;             /* stack pointer */
+	__uint64_t	pcb_u0;
+	__uint64_t	pcb_fp;
+	__uint64_t	pcb_s[9];           /* saved registers */
+	__uint64_t	pcb_fp_a[8];
+	__uint64_t	pcb_fp_t[16];
+	__uint64_t	pcb_fp_s[8];
+	__uint64_t	pcb_fcsr;
+	__uint64_t	pcb_crmd;
+	__uint64_t	pcb_prmd;
+	__uint64_t	pcb_euen;
+	__uint64_t	pcb_misc;
+	__uint64_t	pcb_ecfg;
+	__uint64_t	pcb_estat;
+	__uint64_t	pcb_era;
+	__uint64_t	pcb_badv;
 #define	PCB_FP_STARTED	0x1
 #define	PCB_FP_USERMASK	0x1
+	__uint64_t	pcb_fpflags;
 	vm_offset_t	pcb_onfault;	/* Copyinout fault handler */
 };
 

@@ -46,7 +46,8 @@
 	struct pmap *pc_curpmap;	/* Currently active pmap */	\
 	uint32_t pc_pending_ipis;	/* IPIs pending to this CPU */	\
 	uint32_t pc_hart;		/* Hart ID */			\
-	char __pad[56]			/* Pad to factor of PAGE_SIZE */
+	uint64_t pc_clock;						\
+	char __pad[48]			/* Pad to factor of PAGE_SIZE */
 
 #ifdef _KERNEL
 
@@ -58,7 +59,7 @@ get_pcpu(void)
 {
 	struct pcpu *pcpu;
 
-	__asm __volatile("mv %0, tp" : "=&r"(pcpu));
+	__asm __volatile("move %0, $tp" : "=&r"(pcpu));
 
 	return (pcpu);
 }
@@ -68,7 +69,7 @@ get_curthread(void)
 {
 	struct thread *td;
 
-	__asm __volatile("ld %0, 0(tp)" : "=&r"(td));
+	__asm __volatile("addi.d %0, $tp, 0" : "=&r"(td));
 
 	return (td);
 }
