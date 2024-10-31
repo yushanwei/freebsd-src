@@ -66,43 +66,37 @@ typedef	uint64_t	pn_t;			/* page number */
 #define	Ln_ENTRIES	(1 << Ln_ENTRIES_SHIFT)
 #define	Ln_ADDR_MASK	(Ln_ENTRIES - 1)
 
-/* Bits 9:8 are reserved for software */
-#define	PTE_SW_MANAGED	(1 << 9)
-#define	PTE_SW_WIRED	(1 << 8)
-#define	PTE_D		(1 << 7) /* Dirty */
-#define	PTE_A		(1 << 6) /* Accessed */
-#define	PTE_G		(1 << 5) /* Global */
-#define	PTE_U		(1 << 4) /* User */
-#define	PTE_X		(1 << 3) /* Execute */
-#define	PTE_W		(1 << 2) /* Write */
-#define	PTE_R		(1 << 1) /* Read */
-#define	PTE_V		(1 << 0) /* Valid */
-#define	PTE_RWX		(PTE_R | PTE_W | PTE_X)
-#define	PTE_RX		(PTE_R | PTE_X)
-#define	PTE_KERN	(PTE_V | PTE_R | PTE_W | PTE_A | PTE_D)
-#define	PTE_PROMOTE	(PTE_V | PTE_RWX | PTE_D | PTE_G | PTE_U | \
-			 PTE_SW_MANAGED | PTE_SW_WIRED)
+/* Used by software */
+#define PTE_PRESENT	(1 << 7)
+#define PTE_PRESENT_INVALID	(1 << 60)
+#define PTE_WRITE	(1 << 8)
+#define PTE_ACCESSED	(1 << 0)
+#define PTE_MODIFIED	(1 << 9)
+#define PTE_PROTNONE	(1 << 10)
+#define PTE_SPECIAL	(1 << 11)
+#define PTE_DEVMAP	(1 << 59)
 
-/*
- * Svpbmt Memory Attribute (MA) bits [62:61].
- *
- * +------+-------+------------------------------------------------------------+
- * | Mode | Value | Requested Memory Attributes                                |
- * +------+-------+------------------------------------------------------------+
- * | PMA  | 00    | None, inherited from Physical Memory Attributes (firmware) |
- * | NC   | 01    | Non-cacheable, idempotent, weakly-ordered (RVWMO),         |
- * |      |       | main memory                                                |
- * | IO   | 10    | Non-cacheable, non-idempotent, strongly-ordered, I/O       |
- * | --   | 11    | Reserved                                                   |
- * +------+-------+------------------------------------------------------------+
- */
-#define	PTE_MA_SHIFT		61
-#define	PTE_MA_MASK		(0x3ul << PTE_MA_SHIFT)
-#define	PTE_MA_NONE		(0ul)
-#define	PTE_MA_NC		(1ul << PTE_MA_SHIFT)
-#define	PTE_MA_IO		(2ul << PTE_MA_SHIFT)
+#define PTE_SWP_EXCLUSIVE     (1 << 23)
 
-/* Bits 63 - 54 are reserved for future use. */
+/* Used by hardware */
+#define	PTE_VALID	(1 << 0) /* Valid */
+#define PTE_DIRTY	(1 << 1) /* Dirty */
+#define PTE_PLV_MASK	(3 << 2)
+#define PTE_CACHE_MASK	(3 << 4)
+#define PTE_GLOBAL	(1 << 6) /* Global */
+#define PTE_HUGE	(1 << 6) /* HUGE is a PMD bit */
+#define PTE_HGLOBAL	(1 << 12) /* HGlobal is a PMD bit */
+#define PTE_NO_READ	(1UL << 61) /* Non Read */
+#define PTE_NO_EXEC	(1UL << 62) /* Non Execute */
+#define PTE_RPLV	(1UL << 63)
+
+#define PTE_R		(PTE_VALID)
+#define PTE_RW          (PTE_DIRTY | PTE_WRITE)
+#define PLV_KERN	0
+#define PLV_USER	3
+#define PLV_MASK	0x3
+#define PTE_KERN        (PLV_KERN << 2)
+#define PTE_USER        (PLV_USER << 2)
 #define PTE_HI_MASK	0xFFC0000000000000ULL
 
 #define	PTE_PPN0_S	10

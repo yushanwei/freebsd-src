@@ -44,18 +44,30 @@
  * NOTE: keep this structure in sync with struct reg and struct mcontext.
  */
 struct trapframe {
-	uint64_t tf_ra;
-	uint64_t tf_sp;
-	uint64_t tf_gp;
-	uint64_t tf_tp;
-	uint64_t tf_t[7];
-	uint64_t tf_s[12];
-	uint64_t tf_a[8];
-	uint64_t tf_sepc;
-	uint64_t tf_sstatus;
+	__uint64_t      tf_ra;             /* return address */
+	__uint64_t	tf_tp;             /* thread pointer */
+	__uint64_t	tf_sp;             /* stack pointer */
+	__uint64_t	tf_a[8];           /* function arguments */
+	__uint64_t	tf_t[9];           /* temporaries */
+	__uint64_t	tf_u0;
+	__uint64_t	tf_fp;
+	__uint64_t	tf_s[9];           /* saved registers */
+	/* Special CSR register */
+	__uint64_t	tf_crmd;
+	__uint64_t	tf_prmd;
+	__uint64_t	tf_euen;
+	__uint64_t	tf_misc;
+	__uint64_t	tf_ecfg;
+	__uint64_t	tf_estat;
+	__uint64_t	tf_era;
+	__uint64_t	tf_badv;
 	uint64_t tf_stval;
 	uint64_t tf_scause;
 };
+
+#ifdef _KERNEL
+#define	TF_SIZE	(roundup2(sizeof(struct trapframe), STACKALIGNBYTES + 1))
+#endif
 
 /*
  * Signal frame. Pushed onto user stack before calling sigcode.
@@ -64,6 +76,16 @@ struct sigframe {
 	siginfo_t	sf_si;	/* actual saved siginfo */
 	ucontext_t	sf_uc;	/* actual saved ucontext */
 };
+
+#ifdef _KERNEL
+/*
+ * Kernel frame. Reserved near the top of kernel stacks for saving kernel
+ * state while in userspace.
+ */
+struct kernframe {
+	register_t	kf_tp;
+};
+#endif
 
 #endif /* !LOCORE */
 

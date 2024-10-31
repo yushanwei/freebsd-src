@@ -36,25 +36,36 @@
 #define	_MACHINE_UCONTEXT_H_
 
 struct gpregs {
-	__register_t	gp_ra;
-	__register_t	gp_sp;
-	__register_t	gp_gp;
-	__register_t	gp_tp;
-	__register_t	gp_t[7];
-	__register_t	gp_s[12];
-	__register_t	gp_a[8];
-	__register_t	gp_sepc;
-	__register_t	gp_sstatus;
+	__uint64_t	gp_ra;		/* return address */
+	__uint64_t	gp_tp;		/* thread pointer */
+	__uint64_t	gp_sp;		/* stack pointer */
+	__uint64_t	gp_a[8];		/* function arguments */
+	__uint64_t	gp_t[9];		/* temporaries */
+	__uint64_t	gp_u0;
+	__uint64_t	gp_fp;
+	__uint64_t	gp_s[9];		/* saved registers */
+/* Special CSR register */
+	__uint64_t	gp_crmd;
+	__uint64_t	gp_prmd;
+	__uint64_t	gp_euen;
+	__uint64_t	gp_misc;
+	__uint64_t	gp_ecfg;
+	__uint64_t	gp_estat;
+	__uint64_t	gp_era;
+	__uint64_t	gp_badv;
 };
 
 struct fpregs {
-	__uint64_t	fp_x[32][2];
-	__uint64_t	fp_fcsr;
+	__uint64_t      fp_a[8];	/* Floating point registers */
+	__uint64_t      fp_t[16];	/* Floating point registers */
+	__uint64_t      fp_s[8];	/* Floating point registers */
+	__uint64_t      fp_fcc;	/* Floating point CFR */
+	__uint32_t	fp_fcsr;	/* Floating point control reg */
 	int		fp_flags;
-	int		pad;
 };
 
 struct __mcontext {
+	__register_t    mc_pc;
 	struct gpregs	mc_gpregs;
 	struct fpregs	mc_fpregs;
 	int		mc_flags;

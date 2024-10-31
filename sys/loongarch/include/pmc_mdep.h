@@ -27,11 +27,11 @@
 #ifndef _MACHINE_PMC_MDEP_H_
 #define	_MACHINE_PMC_MDEP_H_
 
-#define	PMC_MDEP_CLASS_INDEX_RISCV	1
+#define	PMC_MDEP_CLASS_INDEX_LOONGARCH	1
 /*
  * On the RISC-V platform we don't support any PMCs yet.
  */
-#include <dev/hwpmc/hwpmc_riscv.h>
+#include <dev/hwpmc/hwpmc_loongarch.h>
 
 union pmc_md_op_pmcallocate {
 	uint64_t		__pad[4];
@@ -43,7 +43,7 @@ union pmc_md_op_pmcallocate {
 
 #ifdef	_KERNEL
 union pmc_md_pmc {
-	struct pmc_md_riscv_pmc		pm_riscv;
+	struct pmc_md_loongarch_pmc		pm_loongarch;
 };
 
 #define	PMC_IN_KERNEL_STACK(va)	kstack_contains(curthread, (va), sizeof(va))
@@ -55,8 +55,8 @@ union pmc_md_pmc {
 /*
  * Prototypes
  */
-struct pmc_mdep *pmc_riscv_initialize(void);
-void	pmc_riscv_finalize(struct pmc_mdep *_md);
+struct pmc_mdep *pmc_loongarch_initialize(void);
+void	pmc_loongarch_finalize(struct pmc_mdep *_md);
 #endif /* _KERNEL */
 
 #endif /* !_MACHINE_PMC_MDEP_H_ */
