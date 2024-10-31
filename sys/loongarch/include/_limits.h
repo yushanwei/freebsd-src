@@ -51,9 +51,15 @@
 #define	__INT_MAX	0x7fffffff	/* max value for an int */
 #define	__INT_MIN	(-0x7fffffff - 1)	/* min value for an int */
 
+#if __loongarch_grlen == 32
+#define __ULONG_MAX     0xffffffffUL
+#define __LONG_MAX      0x7fffffffL
+#define __LONG_MIN      (-0x7fffffffL - 1)
+#elif __loongarch_grlen == 64
 #define	__ULONG_MAX	0xffffffffffffffffUL	/* max for an unsigned long */
 #define	__LONG_MAX	0x7fffffffffffffffL	/* max for a long */
 #define	__LONG_MIN	(-0x7fffffffffffffffL - 1) /* min for a long */
+#endif
 
 /* Long longs have the same size but not the same type as longs. */
 			/* max for an unsigned long long */
@@ -61,19 +67,27 @@
 #define	__LLONG_MAX	0x7fffffffffffffffLL	/* max for a long long */
 #define	__LLONG_MIN	(-0x7fffffffffffffffLL - 1) /* min for a long long */
 
+#if __loongarch_grlen == 32
+#define __SSIZE_MAX     __INT_MAX
+#define __SIZE_T_MAX    __UINT_MAX
+#define __OFF_MAX       __LLONG_MAX
+#define __OFF_MIN       __LLONG_MIN
+#define __UQUAD_MAX     __ULLONG_MAX
+#define __QUAD_MAX      __LLONG_MAX
+#define __QUAD_MIN      __LLONG_MIN
+#define __LONG_BIT      32
+#elif __loongarch_grlen == 64
 #define	__SSIZE_MAX	__LONG_MAX	/* max value for a ssize_t */
-
 #define	__SIZE_T_MAX	__ULONG_MAX	/* max value for a size_t */
-
 #define	__OFF_MAX	__LONG_MAX	/* max value for an off_t */
 #define	__OFF_MIN	__LONG_MIN	/* min value for an off_t */
-
 /* Quads and longs are the same size.  Ensure they stay in sync. */
 #define	__UQUAD_MAX	(__ULONG_MAX)	/* max value for a uquad_t */
 #define	__QUAD_MAX	(__LONG_MAX)	/* max value for a quad_t */
 #define	__QUAD_MIN	(__LONG_MIN)	/* min value for a quad_t */
-
 #define	__LONG_BIT	64
+
+#endif
 #define	__WORD_BIT	32
 
 /* Minimum signal stack size. */
