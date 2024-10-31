@@ -47,7 +47,7 @@ kdb_cpu_sync_icache(unsigned char *addr, size_t size)
 	 * Other CPUs flush their instruction cache when resuming from
 	 * IPI_STOP.
 	 */
-	fence_i();
+	flush_icache();
 }
 
 static __inline void

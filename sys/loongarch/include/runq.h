@@ -27,18 +27,31 @@
 #ifndef	_MACHINE_RUNQ_H_
 #define	_MACHINE_RUNQ_H_
 
-#define	RQB_LEN		(1)		/* Number of priority status words. */
-#define	RQB_L2BPW	(6)		/* Log2(sizeof(rqb_word_t) * NBBY)). */
+#ifdef __loongarch_lp64
+#define RQB_LEN         (1)             /* Number of priority status words. */
+#define RQB_L2BPW       (6)             /* Log2(sizeof(rqb_word_t) * NBBY)). */
+#else
+#define RQB_LEN         (2)             /* Number of priority status words. */
+#define RQB_L2BPW       (5)             /* Log2(sizeof(rqb_word_t) * NBBY)). */
+#endif
 #define	RQB_BPW		(1<<RQB_L2BPW)	/* Bits in an rqb_word_t. */
 
 #define	RQB_BIT(pri)	(1ul << ((pri) & (RQB_BPW - 1)))
 #define	RQB_WORD(pri)	((pri) >> RQB_L2BPW)
 
-#define	RQB_FFS(word)	(ffsl(word) - 1)
+#ifdef __loongarch_lp64
+#define RQB_FFS(word)   (ffsl(word) - 1)
+#else
+#define RQB_FFS(word)   (ffs(word) - 1)
+#endif
 
 /*
  * Type of run queue status word.
  */
-typedef	unsigned long	rqb_word_t;
+#ifdef __loongarch_lp64
+typedef u_int64_t       rqb_word_t;
+#else
+typedef u_int32_t       rqb_word_t;
+#endif
 
 #endif

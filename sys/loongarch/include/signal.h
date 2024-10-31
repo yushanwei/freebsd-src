@@ -38,8 +38,58 @@ typedef	long sig_atomic_t;
 
 #if __BSD_VISIBLE
 
+/* FP context was used */
+#define SC_USED_FP              (1 << 0)
+/* Address error was due to memory load */
+#define SC_ADDRERR_RD           (1 << 30)
+/* Address error was due to memory store */
+#define SC_ADDRERR_WR           (1 << 31)
+
 struct sigcontext {
-	int _dummy;
+	sig_atomic_t sc;
+};
+
+#define CONTEXT_INFO_ALIGN      16
+struct sctx_info {
+        __uint32_t   magic;
+        __uint32_t   size;
+        __uint64_t   padding;        /* padding to 16 bytes */
+};
+ 
+/* FPU context */
+#define FPU_CTX_MAGIC           0x46505501
+#define FPU_CTX_ALIGN           8
+struct fpu_context {
+        __register_t   regs[32];
+        __register_t   fcc;
+        __register_t   fcsr;
+};
+ 
+/* LSX context */
+#define LSX_CTX_MAGIC           0x53580001
+#define LSX_CTX_ALIGN           16
+struct lsx_context {
+        __register_t   regs[2*32];
+        __register_t   fcc;
+        __register_t   fcsr;
+};
+
+/* LASX context */
+#define LASX_CTX_MAGIC          0x41535801
+#define LASX_CTX_ALIGN          32
+struct lasx_context {
+        __register_t   regs[4*32];
+        __register_t   fcc;
+        __register_t   fcsr;
+};
+
+/* LBT context */
+#define LBT_CTX_MAGIC           0x42540001
+#define LBT_CTX_ALIGN           8
+struct lbt_context {
+        __register_t   regs[4];
+        __register_t   eflags;
+        __register_t   ftop;
 };
 
 #endif

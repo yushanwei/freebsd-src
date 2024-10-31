@@ -36,12 +36,17 @@
 #define	INT8_C(c)		(c)
 #define	INT16_C(c)		(c)
 #define	INT32_C(c)		(c)
-#define	INT64_C(c)		(c ## L)
 
 #define	UINT8_C(c)		(c)
 #define	UINT16_C(c)		(c)
 #define	UINT32_C(c)		(c ## U)
+#if __loongarch_grlen == 32
+#define	INT64_C(c)		(c ## LL)
+#define	UINT64_C(c)		(c ## ULL)
+#elif __loongarch_grlen == 64
+#define	INT64_C(c)		(c ## L)
 #define	UINT64_C(c)		(c ## UL)
+#endif
 
 #define	INTMAX_C(c)		INT64_C(c)
 #define	UINTMAX_C(c)		UINT64_C(c)
@@ -58,19 +63,25 @@
 #define	INT8_MIN	(-0x7f-1)
 #define	INT16_MIN	(-0x7fff-1)
 #define	INT32_MIN	(-0x7fffffff-1)
-#define	INT64_MIN	(-0x7fffffffffffffffL-1)
 
 /* Maximum values of exact-width signed integer types. */
 #define	INT8_MAX	0x7f
 #define	INT16_MAX	0x7fff
 #define	INT32_MAX	0x7fffffff
-#define	INT64_MAX	0x7fffffffffffffffL
 
 /* Maximum values of exact-width unsigned integer types. */
 #define	UINT8_MAX	0xff
 #define	UINT16_MAX	0xffff
 #define	UINT32_MAX	0xffffffffU
+#if __loongarch_grlen == 32
+#define	INT64_MIN	(-0x7fffffffffffffff-1)
+#define	INT64_MAX	0x7fffffffffffffff
+#define	UINT64_MAX	0xffffffffffffffff
+#elif  __loongarch_grlen == 64
+#define	INT64_MIN	(-0x7fffffffffffffffL-1)
+#define	INT64_MAX	0x7fffffffffffffffL
 #define	UINT64_MAX	0xffffffffffffffffUL
+#endif
 
 /*
  * ISO/IEC 9899:1999
@@ -120,9 +131,15 @@
  * ISO/IEC 9899:1999
  * 7.18.2.4  Limits of integer types capable of holding object pointers
  */
+#if __loongarch_grlen == 32
+#define INTPTR_MIN      INT32_MIN
+#define INTPTR_MAX      INT32_MAX
+#define UINTPTR_MAX     UINT32_MAX
+#elif __loongarch_grlen == 64
 #define	INTPTR_MIN	INT64_MIN
 #define	INTPTR_MAX	INT64_MAX
 #define	UINTPTR_MAX	UINT64_MAX
+#endif
 
 /*
  * ISO/IEC 9899:1999
@@ -136,6 +153,7 @@
  * ISO/IEC 9899:1999
  * 7.18.3  Limits of other integer types
  */
+#if __loongarch_grlen == 64
 /* Limits of ptrdiff_t. */
 #define	PTRDIFF_MIN	INT64_MIN	
 #define	PTRDIFF_MAX	INT64_MAX
@@ -146,6 +164,13 @@
 
 /* Limit of size_t. */
 #define	SIZE_MAX	UINT64_MAX
+#elif #if __loongarch_grlen == 32
+#define PTRDIFF_MIN     INT32_MIN
+#define PTRDIFF_MAX     INT32_MAX
+#define SIG_ATOMIC_MIN  INT32_MIN
+#define SIG_ATOMIC_MAX  INT32_MAX
+#define SIZE_MAX        UINT32_MAX
+#endif
 
 /* Limits of wint_t. */
 #define	WINT_MIN	INT32_MIN

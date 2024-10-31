@@ -38,20 +38,31 @@
 #include <sys/_types.h>
 
 struct reg {
-	__uint64_t	ra;		/* return address */
-	__uint64_t	sp;		/* stack pointer */
-	__uint64_t	gp;		/* global pointer */
-	__uint64_t	tp;		/* thread pointer */
-	__uint64_t	t[7];		/* temporaries */
-	__uint64_t	s[12];		/* saved registers */
-	__uint64_t	a[8];		/* function arguments */
-	__uint64_t	sepc;		/* exception program counter */
-	__uint64_t	sstatus;	/* status register */
+	__register_t	ra;		/* return address */
+	__register_t	tp;		/* thread pointer */
+	__register_t	sp;		/* stack pointer */
+	__register_t	a[8];		/* function arguments */
+	__register_t	t[9];		/* temporaries */
+	__register_t	u0;
+	__register_t	fp;
+	__register_t	s[9];		/* saved registers */
+/* Special CSR register */
+        __register_t	crmd;
+        __register_t	prmd;
+        __register_t	euen;
+        __register_t	misc;
+        __register_t	ecfg;
+        __register_t	estat;
+        __register_t	era;
+        __register_t	badv;
 };
 
 struct fpreg {
-	__uint64_t	fp_x[32][2];	/* Floating point registers */
-	__uint64_t	fp_fcsr;	/* Floating point control reg */
+	__register_t      fa[8];	/* Floating point registers */
+	__register_t      ft[16];	/* Floating point registers */
+	__register_t      fs[8];	/* Floating point registers */
+	__register_t      fcc[8];	/* Floating point CFR */
+	__register_t      fcsr;		/* Floating point control reg */
 };
 
 struct dbreg {
