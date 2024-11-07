@@ -55,9 +55,8 @@
 #include <machine/vmm.h>
 #include <machine/vmm_dev.h>
 #include <machine/md_var.h>
-#include <machine/sbi.h>
 
-#include "riscv.h"
+#include "loongarch.h"
 
 static int
 vmm_sbi_handle_rfnc(struct vcpu *vcpu, struct hypctx *hypctx)
@@ -126,7 +125,7 @@ vmm_sbi_handle_ipi(struct vcpu *vcpu, struct hypctx *hypctx)
 				/* TODO. */
 				target_vcpu = vm_vcpu(hyp->vm, hart_id);
 				target_hypctx = hypctx->hyp->ctx[hart_id];
-				riscv_send_ipi(target_hypctx, hart_id);
+				loongarch_send_ipi(target_hypctx, hart_id);
 			}
 		}
 		ret = 0;
@@ -148,7 +147,7 @@ vmm_sbi_ecall(struct vcpu *vcpu, bool *retu)
 	int sbi_extension_id __unused;
 	struct hypctx *hypctx;
 
-	hypctx = riscv_get_active_vcpu();
+	hypctx = loongarch_get_active_vcpu();
 	sbi_extension_id = hypctx->guest_regs.hyp_a[7];
 
 	dprintf("%s: args %lx %lx %lx %lx %lx %lx %lx %lx\n", __func__,
