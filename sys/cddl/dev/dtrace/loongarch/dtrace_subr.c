@@ -39,7 +39,7 @@
 #include <cddl/dev/dtrace/dtrace_cddl.h>
 #include <machine/vmparam.h>
 #include <machine/encoding.h>
-#include <machine/riscvreg.h>
+#include <machine/loongarchreg.h>
 #include <machine/clock.h>
 #include <machine/frame.h>
 #include <machine/trap.h>
