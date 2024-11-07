@@ -37,7 +37,7 @@
 #include <machine/frame.h>
 #include <machine/md_var.h>
 #include <machine/encoding.h>
-#include <machine/riscvreg.h>
+#include <machine/loongarchreg.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
