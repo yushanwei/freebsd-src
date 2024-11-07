@@ -31,8 +31,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _VMM_RISCV_H_
-#define _VMM_RISCV_H_
+#ifndef _VMM_LOONGARCH_H_
+#define _VMM_LOONGARCH_H_
 
 #include <machine/reg.h>
 #include <machine/pcpu.h>
@@ -121,12 +121,12 @@ DEFINE_VMMOPS_IFUNC(void, vmspace_free, (struct vmspace *vmspace))
 
 #define	dprintf(fmt, ...)
 
-struct hypctx *riscv_get_active_vcpu(void);
+struct hypctx *loongarch_get_active_vcpu(void);
 void vmm_switch(struct hypctx *);
 void vmm_unpriv_trap(struct hyptrap *, uint64_t tmp);
 int vmm_sbi_ecall(struct vcpu *, bool *);
 
-void riscv_send_ipi(struct hypctx *hypctx, int hart_id);
-int riscv_check_ipi(struct hypctx *hypctx, bool clear);
+void loongarch_send_ipi(struct hypctx *hypctx, int hart_id);
+int loongarch_check_ipi(struct hypctx *hypctx, bool clear);
 
-#endif /* !_VMM_RISCV_H_ */
+#endif /* !_VMM_LOONGARCH_H_ */

@@ -42,8 +42,8 @@
 #include <sys/rman.h>
 #include <sys/smp.h>
 
-#include <riscv/vmm/riscv.h>
-#include <riscv/vmm/vmm_aplic.h>
+#include <loongarch/vmm/loongarch.h>
+#include <loongarch/vmm/vmm_aplic.h>
 
 #include <machine/vmm_instruction_emul.h>
 #include <machine/vmm_dev.h>
