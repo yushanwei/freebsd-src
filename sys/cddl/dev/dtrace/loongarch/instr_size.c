@@ -7,7 +7,7 @@
 #include <sys/types.h>
 #include <sys/dtrace.h>
 
-#include <machine/riscvreg.h>
+#include <machine/loongarchreg.h>
 
 #define RVC_MASK 0x03
 
