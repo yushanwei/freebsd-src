@@ -53,7 +53,7 @@
 #include <vm/vm_param.h>
 
 #include <machine/md_var.h>
-#include <machine/riscvreg.h>
+#include <machine/loongarchreg.h>
 #include <machine/vm.h>
 #include <machine/cpufunc.h>
 #include <machine/cpu.h>
@@ -66,7 +66,7 @@
 #include <machine/encoding.h>
 #include <machine/db_machdep.h>
 
-#include "riscv.h"
+#include "loongarch.h"
 #include "vmm_aplic.h"
 #include "vmm_stat.h"
 
@@ -85,14 +85,14 @@ m_op(uint32_t insn, int match, int mask)
 }
 
 static inline void
-riscv_set_active_vcpu(struct hypctx *hypctx)
+loongarch_set_active_vcpu(struct hypctx *hypctx)
 {
 
 	DPCPU_SET(vcpu, hypctx);
 }
 
 struct hypctx *
-riscv_get_active_vcpu(void)
+loongarch_get_active_vcpu(void)
 {
 
 	return (DPCPU_GET(vcpu));
@@ -103,12 +103,12 @@ vmmops_modinit(void)
 {
 
 	if (!has_hyp) {
-		printf("vmm: riscv hart doesn't support H-extension.\n");
+		printf("vmm: loongarch hart doesn't support H-extension.\n");
 		return (ENXIO);
 	}
 
 	if (!has_sstc) {
-		printf("vmm: riscv hart doesn't support SSTC extension.\n");
+		printf("vmm: loongarch hart doesn't support SSTC extension.\n");
 		return (ENXIO);
 	}
 
@@ -234,7 +234,7 @@ vmmops_vcpu_init(void *vmi, struct vcpu *vcpu1, int vcpuid)
 }
 
 static int
-riscv_vmm_pinit(pmap_t pmap)
+loongarch_vmm_pinit(pmap_t pmap)
 {
 
 	dprintf("%s: pmap %p\n", __func__, pmap);
@@ -248,7 +248,7 @@ struct vmspace *
 vmmops_vmspace_alloc(vm_offset_t min, vm_offset_t max)
 {
 
-	return (vmspace_alloc(min, max, riscv_vmm_pinit));
+	return (vmspace_alloc(min, max, loongarch_vmm_pinit));
 }
 
 void
@@ -260,7 +260,7 @@ vmmops_vmspace_free(struct vmspace *vmspace)
 }
 
 static void
-riscv_unpriv_read(struct hypctx *hypctx, uintptr_t guest_addr, uint64_t *data,
+loongarch_unpriv_read(struct hypctx *hypctx, uintptr_t guest_addr, uint64_t *data,
     struct hyptrap *trap)
 {
 	register struct hyptrap * htrap asm("a0");
@@ -320,7 +320,7 @@ riscv_unpriv_read(struct hypctx *hypctx, uintptr_t guest_addr, uint64_t *data,
 }
 
 static int
-riscv_gen_inst_emul_data(struct hypctx *hypctx, struct vm_exit *vme_ret,
+loongarch_gen_inst_emul_data(struct hypctx *hypctx, struct vm_exit *vme_ret,
     struct hyptrap *trap)
 {
 	uintptr_t guest_addr;
@@ -346,7 +346,7 @@ riscv_gen_inst_emul_data(struct hypctx *hypctx, struct vm_exit *vme_ret,
 
 	bzero(trap, sizeof(struct hyptrap));
 	trap->scause = -1;
-	riscv_unpriv_read(hypctx, guest_addr, &insn, trap);
+	loongarch_unpriv_read(hypctx, guest_addr, &insn, trap);
 	if (trap->scause != -1)
 		return (-1);
 
@@ -441,7 +441,7 @@ riscv_gen_inst_emul_data(struct hypctx *hypctx, struct vm_exit *vme_ret,
 }
 
 static bool
-riscv_handle_world_switch(struct hypctx *hypctx, struct vm_exit *vme,
+loongarch_handle_world_switch(struct hypctx *hypctx, struct vm_exit *vme,
     pmap_t pmap)
 {
 	struct hyptrap trap;
@@ -474,7 +474,7 @@ riscv_handle_world_switch(struct hypctx *hypctx, struct vm_exit *vme,
 			vme->inst_length = 0;
 			vme->u.paging.gpa = gpa;
 		} else {
-			ret = riscv_gen_inst_emul_data(hypctx, vme, &trap);
+			ret = loongarch_gen_inst_emul_data(hypctx, vme, &trap);
 			if (ret != 0) {
 				vme->exitcode = VM_EXITCODE_HYP;
 				vme->u.hyp.scause = trap.scause;
@@ -535,7 +535,7 @@ vmmops_gla2gpa(void *vcpui, struct vm_guest_paging *paging, uint64_t gla,
 }
 
 void
-riscv_send_ipi(struct hypctx *hypctx, int hart_id)
+loongarch_send_ipi(struct hypctx *hypctx, int hart_id)
 {
 	struct hyp *hyp;
 	struct vm *vm;
@@ -549,7 +549,7 @@ riscv_send_ipi(struct hypctx *hypctx, int hart_id)
 }
 
 int
-riscv_check_ipi(struct hypctx *hypctx, bool clear)
+loongarch_check_ipi(struct hypctx *hypctx, bool clear)
 {
 	int val;
 
@@ -562,7 +562,7 @@ riscv_check_ipi(struct hypctx *hypctx, bool clear)
 }
 
 static void
-riscv_sync_interrupts(struct hypctx *hypctx)
+loongarch_sync_interrupts(struct hypctx *hypctx)
 {
 	int pending;
 
@@ -577,11 +577,11 @@ riscv_sync_interrupts(struct hypctx *hypctx)
 }
 
 static void
-riscv_sync_ipi(struct hypctx *hypctx)
+loongarch_sync_ipi(struct hypctx *hypctx)
 {
 
 	/* Guest clears VSSIP bit manually. */
-	if (riscv_check_ipi(hypctx, true))
+	if (loongarch_check_ipi(hypctx, true))
 		hypctx->guest_csrs.hvip |= HVIP_VSSIP;
 
 	csr_write(hvip, hypctx->guest_csrs.hvip);
@@ -651,11 +651,11 @@ vmmops_run(void *vcpui, register_t pc, pmap_t pmap, struct vm_eventinfo *evinfo)
 		 * TODO: What happens if a timer interrupt is asserted exactly
 		 * here, but for the previous VM?
 		 */
-		riscv_set_active_vcpu(hypctx);
+		loongarch_set_active_vcpu(hypctx);
 		aplic_flush_hwstate(hypctx);
 
-		riscv_sync_interrupts(hypctx);
-		riscv_sync_ipi(hypctx);
+		loongarch_sync_interrupts(hypctx);
+		loongarch_sync_ipi(hypctx);
 
 		dprintf("%s: Entering guest VM, vsatp %lx, ss %lx hs %lx\n",
 		    __func__, csr_read(vsatp), hypctx->guest_regs.hyp_sstatus,
@@ -667,7 +667,7 @@ vmmops_run(void *vcpui, register_t pc, pmap_t pmap, struct vm_eventinfo *evinfo)
 		    hypctx->guest_regs.hyp_hstatus);
 
 		aplic_sync_hwstate(hypctx);
-		riscv_sync_interrupts(hypctx);
+		loongarch_sync_interrupts(hypctx);
 
 		/*
 		 * TODO: deactivate stage 2 pmap here if needed.
@@ -685,7 +685,7 @@ vmmops_run(void *vcpui, register_t pc, pmap_t pmap, struct vm_eventinfo *evinfo)
 		vme->pc = hypctx->guest_regs.hyp_sepc;
 		vme->inst_length = INSN_SIZE;
 
-		handled = riscv_handle_world_switch(hypctx, vme, pmap);
+		handled = loongarch_handle_world_switch(hypctx, vme, pmap);
 		if (handled == false)
 			/* Exit loop to emulate instruction. */
 			break;
@@ -701,7 +701,7 @@ vmmops_run(void *vcpui, register_t pc, pmap_t pmap, struct vm_eventinfo *evinfo)
 }
 
 static void
-riscv_pcpu_vmcleanup(void *arg)
+loongarch_pcpu_vmcleanup(void *arg)
 {
 	struct hyp *hyp;
 	int i, maxcpus;
@@ -709,8 +709,8 @@ riscv_pcpu_vmcleanup(void *arg)
 	hyp = arg;
 	maxcpus = vm_get_maxcpus(hyp->vm);
 	for (i = 0; i < maxcpus; i++) {
-		if (riscv_get_active_vcpu() == hyp->ctx[i]) {
-			riscv_set_active_vcpu(NULL);
+		if (loongarch_get_active_vcpu() == hyp->ctx[i]) {
+			loongarch_set_active_vcpu(NULL);
 			break;
 		}
 	}
@@ -741,7 +741,7 @@ vmmops_cleanup(void *vmi)
 
 	aplic_vmcleanup(hyp);
 
-	smp_rendezvous(NULL, riscv_pcpu_vmcleanup, NULL, hyp);
+	smp_rendezvous(NULL, loongarch_pcpu_vmcleanup, NULL, hyp);
 
 	free(hyp, M_HYP);
 }
