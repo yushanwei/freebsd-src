@@ -32,7 +32,7 @@
 #include <sys/cpuvar_defs.h>
 #include <sys/dtrace.h>
 
-#include <machine/riscvreg.h>
+#include <machine/loongarchreg.h>
 #include <machine/asm.h>
 
 #include "assym.inc"
