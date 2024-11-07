@@ -56,7 +56,7 @@
 #include <vm/vm_extern.h>
 #include <vm/vm_param.h>
 
-#include <machine/riscvreg.h>
+#include <machine/loongarchreg.h>
 #include <machine/cpu.h>
 #include <machine/fpe.h>
 #include <machine/machdep.h>
@@ -73,7 +73,7 @@
 #include <dev/vmm/vmm_ktr.h>
 
 #include "vmm_stat.h"
-#include "riscv.h"
+#include "loongarch.h"
 
 #include "vmm_aplic.h"
 
@@ -175,6 +175,11 @@ SYSCTL_UINT(_hw_vmm, OID_AUTO, maxcpu, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
 static void vm_free_memmap(struct vm *vm, int ident);
 static bool sysmem_mapping(struct vm *vm, struct mem_map *mm);
 static void vcpu_notify_event_locked(struct vcpu *vcpu);
+
+/* global statistics */
+VMM_STAT(VMEXIT_COUNT, "total number of vm exits");
+VMM_STAT(VMEXIT_IRQ, "number of vmexits for an irq");
+VMM_STAT(VMEXIT_UNHANDLED, "number of vmexits for an unhandled exception");
 
 /*
  * Upper limit on vm_maxcpu. We could increase this to 28 bits, but this
@@ -287,10 +292,9 @@ static moduledata_t vmm_kmod = {
 /*
  * vmm initialization has the following dependencies:
  *
- * - HYP initialization requires smp_rendezvous() and therefore must happen
- *   after SMP is fully functional (after SI_SUB_SMP).
+ * - vmm device initialization requires an initialized devfs.
  */
-DECLARE_MODULE(vmm, vmm_kmod, SI_SUB_SMP + 1, SI_ORDER_ANY);
+DECLARE_MODULE(vmm, vmm_kmod, SI_SUB_DEVFS + 1, SI_ORDER_ANY);
 MODULE_VERSION(vmm, 1);
 
 static void
@@ -1407,7 +1411,7 @@ vm_handle_wfi(struct vcpu *vcpu, struct vm_exit *vme, bool *retu)
 		if (aplic_check_pending(vcpu->cookie))
 			break;
 
-		if (riscv_check_ipi(vcpu->cookie, false))
+		if (loongarch_check_ipi(vcpu->cookie, false))
 			break;
 
 		if (vcpu_should_yield(vcpu))
