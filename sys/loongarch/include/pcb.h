@@ -46,10 +46,9 @@ struct pcb {
 	__uint64_t	pcb_u0;
 	__uint64_t	pcb_fp;
 	__uint64_t	pcb_s[9];           /* saved registers */
-	__uint64_t	pcb_fp_a[8];
-	__uint64_t	pcb_fp_t[16];
-	__uint64_t	pcb_fp_s[8];
+	__uint64_t	pcb_fp_x[32][2];
 	__uint64_t	pcb_fcsr;
+	__uint64_t	pcb_fcc;
 	__uint64_t	pcb_crmd;
 	__uint64_t	pcb_prmd;
 	__uint64_t	pcb_euen;

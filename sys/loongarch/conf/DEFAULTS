@@ -1,0 +1,14 @@
+#
+# DEFAULTS -- Default kernel configuration file for FreeBSD/LoongArch
+#
+
+machine		loongarch	loongarch64
+
+# Pseudo devices.
+device		mem		# Memory and kernel memory devices
+
+# Default partitioning schemes
+options 	GEOM_PART_GPT
+
+options 	INTRNG
+options 	NETLINK			# netlink(4) support

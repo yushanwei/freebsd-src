@@ -70,12 +70,12 @@ ENTRY(vmm_switch)
 	la	t4, .Lswitch_return
 	ld	t5, (HYP_G_SEPC)(a0)
 
-	csrrw	t0, sstatus, t0
+	csrrw	t0, estat, t0
 	csrrw	t1, hstatus, t1
 	csrrw	t2, scounteren, t2
 	csrrw	t3, sscratch, a0
 	csrrw	t4, stvec, t4
-	csrw	sepc, t5
+	csrw	era, t5
 
 	sd	t0, (HYP_H_SSTATUS)(a0)
 	sd	t1, (HYP_H_HSTATUS)(a0)
@@ -161,12 +161,12 @@ ENTRY(vmm_switch)
 	ld	t4, (HYP_H_HSTATUS)(a0)
 	ld	t5, (HYP_H_SSTATUS)(a0)
 
-	csrr	t0, sepc
+	csrr	t0, era
 	csrw	stvec, t1
 	csrrw	t2, sscratch, t2
 	csrrw	t3, scounteren, t3
 	csrrw	t4, hstatus, t4
-	csrrw	t5, sstatus, t5
+	csrrw	t5, estat, t5
 
 	sd	t0, (HYP_G_SEPC)(a0)
 	sd	t2, (HYP_G_A + 0 * 8)(a0)
@@ -204,10 +204,10 @@ ENTRY(vmm_switch)
 END(vmm_switch)
 
 ENTRY(vmm_unpriv_trap)
-	csrr	a1, sepc
+	csrr	a1, era
 	sd	a1, HYP_TRAP_SEPC(a0)
 	addi	a1, a1, 4	/* Next instruction after hlvx.hu */
-	csrw	sepc, a1
+	csrw	era, a1
 	csrr	a1, scause
 	sd	a1, HYP_TRAP_SCAUSE(a0)
 	csrr	a1, stval

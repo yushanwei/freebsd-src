@@ -151,5 +151,60 @@ void loongarch_cache_install_hooks(struct loongarch_cache_ops *, u_int);
 
 void loongarch_nullop(void);
 
+/*
+ * Manipulate bits in a register.
+static __inline u_long set_csr_euen(u_long);
+static __inline u_long clear_csr_euen(u_long);
+static __inline u_long change_csr_euen(u_long, u_long);
+*/
+
+#define __BUILD_CSR_OP(NAME)				\
+static __inline  u_long					\
+set_csr_##NAME(u_long set)				\
+{							\
+	u_long res, new;				\
+							\
+	res = read_csr_##NAME();			\
+	new = res | set;				\
+	write_csr_##NAME(new);				\
+							\
+	return res;					\
+}							\
+							\
+static __inline u_long					\
+clear_csr_##NAME(u_long clear)				\
+{							\
+	u_long res, new;				\
+							\
+	res = read_csr_##NAME();			\
+	new = res & ~clear;				\
+	write_csr_##NAME(new);				\
+							\
+	return res;					\
+}							\
+							\
+static __inline u_long					\
+change_csr_##NAME(u_long change, u_long val)		\
+{							\
+	u_long res, new;				\
+							\
+	res = read_csr_##NAME();			\
+	new = res & ~change;				\
+	new |= (val & change);				\
+	write_csr_##NAME(new);				\
+							\
+	return res;					\
+}
+
+__BUILD_CSR_OP(euen)
+__BUILD_CSR_OP(ecfg)
+__BUILD_CSR_OP(tlbidx)
+
+#define set_csr_estat(val)	\
+	csr_swap(val, val, LOONGARCH_CSR_ESTAT)
+#define clear_csr_estat(val)	\
+	csr_swap(~(val), val, LOONGARCH_CSR_ESTAT)
+
+
 #endif	/* _KERNEL */
 #endif	/* _MACHINE_CPUFUNC_H_ */

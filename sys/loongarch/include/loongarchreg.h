@@ -1126,65 +1126,6 @@
 #define write_csr_perfctrl3(val)	csr_write64(val, LOONGARCH_CSR_PERFCTRL3)
 #define write_csr_perfcntr3(val)	csr_write64(val, LOONGARCH_CSR_PERFCNTR3)
 
-#define _rdtime(void)			\
-({      u_long val;			\
-        __asm __volatile(		\
-                "rdtime.d %0,$zero"	\
-                : "=r" (val)		\
-                :			\
-                );			\
-        val;				\
-})
-
-
-/*
- * Manipulate bits in a register.
- */
-#define __BUILD_CSR_COMMON(name)				\
-static inline unsigned long					\
-set_##name(unsigned long set)					\
-{								\
-	unsigned long res, new;					\
-								\
-	res = read_##name();					\
-	new = res | set;					\
-	write_##name(new);					\
-								\
-	return res;						\
-}								\
-								\
-static inline unsigned long					\
-clear_##name(unsigned long clear)				\
-{								\
-	unsigned long res, new;					\
-								\
-	res = read_##name();					\
-	new = res & ~clear;					\
-	write_##name(new);					\
-								\
-	return res;						\
-}								\
-								\
-static inline unsigned long					\
-change_##name(unsigned long change, unsigned long val)		\
-{								\
-	unsigned long res, new;					\
-								\
-	res = read_##name();					\
-	new = res & ~change;					\
-	new |= (val & change);					\
-	write_##name(new);					\
-								\
-	return res;						\
-}
-
-#define __BUILD_CSR_OP(name)	__BUILD_CSR_COMMON(csr_##name)
-
-#define set_csr_estat(val)	\
-	csr_swap(val, val, LOONGARCH_CSR_ESTAT)
-#define clear_csr_estat(val)	\
-	csr_swap(~(val), val, LOONGARCH_CSR_ESTAT)
-
 /* Generic EntryLo bit definitions */
 #define ENTRYLO_V		(_ULCAST_(1) << 0)
 #define ENTRYLO_D		(_ULCAST_(1) << 1)

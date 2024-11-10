@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2024 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2024-2025 Ruslan Bukin <br@bsdpad.com>
  *
  * This software was developed by the University of Cambridge Computer
  * Laboratory (Department of Computer Science and Technology) under Innovate
@@ -66,8 +66,11 @@
 #include <machine/encoding.h>
 #include <machine/db_machdep.h>
 
+#include <dev/vmm/vmm_mem.h>
+
 #include "loongarch.h"
 #include "vmm_aplic.h"
+#include "vmm_fence.h"
 #include "vmm_stat.h"
 
 MALLOC_DEFINE(M_HYP, "RISC-V VMM HYP", "RISC-V VMM HYP");
@@ -104,11 +107,6 @@ vmmops_modinit(void)
 
 	if (!has_hyp) {
 		printf("vmm: loongarch hart doesn't support H-extension.\n");
-		return (ENXIO);
-	}
-
-	if (!has_sstc) {
-		printf("vmm: loongarch hart doesn't support SSTC extension.\n");
 		return (ENXIO);
 	}
 
@@ -167,11 +165,11 @@ vmmops_vcpu_restore_csrs(struct hypctx *hypctx)
 
 	csrs = &hypctx->guest_csrs;
 
-	csr_write(vsstatus, csrs->vsstatus);
+	csr_write(vestat, csrs->vestat);
 	csr_write(vsie, csrs->vsie);
 	csr_write(vstvec, csrs->vstvec);
 	csr_write(vsscratch, csrs->vsscratch);
-	csr_write(vsepc, csrs->vsepc);
+	csr_write(vera, csrs->vera);
 	csr_write(vscause, csrs->vscause);
 	csr_write(vstval, csrs->vstval);
 	csr_write(hvip, csrs->hvip);
@@ -185,11 +183,11 @@ vmmops_vcpu_save_csrs(struct hypctx *hypctx)
 
 	csrs = &hypctx->guest_csrs;
 
-	csrs->vsstatus = csr_read(vsstatus);
+	csrs->vestat = csr_read(vestat);
 	csrs->vsie = csr_read(vsie);
 	csrs->vstvec = csr_read(vstvec);
 	csrs->vsscratch = csr_read(vsscratch);
-	csrs->vsepc = csr_read(vsepc);
+	csrs->vera = csr_read(vera);
 	csrs->vscause = csr_read(vscause);
 	csrs->vstval = csr_read(vstval);
 	csrs->hvip = csr_read(hvip);
@@ -217,9 +215,14 @@ vmmops_vcpu_init(void *vmi, struct vcpu *vcpu1, int vcpuid)
 	hypctx->vcpu = vcpu1;
 	hypctx->guest_scounteren = HCOUNTEREN_CY | HCOUNTEREN_TM;
 
-	/* sstatus */
-	hypctx->guest_regs.hyp_sstatus = SSTATUS_SPP | SSTATUS_SPIE;
-	hypctx->guest_regs.hyp_sstatus |= SSTATUS_FS_INITIAL;
+	/* Fence queue. */
+	hypctx->fence_queue = mallocarray(VMM_FENCE_QUEUE_SIZE,
+	    sizeof(struct vmm_fence), M_HYP, M_WAITOK | M_ZERO);
+	mtx_init(&hypctx->fence_queue_mtx, "fence queue", NULL, MTX_SPIN);
+
+	/* estat */
+	hypctx->guest_regs.hyp_estat = SSTATUS_SPP | SSTATUS_SPIE;
+	hypctx->guest_regs.hyp_estat |= SSTATUS_FS_INITIAL;
 
 	/* hstatus */
 	hypctx->guest_regs.hyp_hstatus = HSTATUS_SPV | HSTATUS_VTW;
@@ -229,6 +232,7 @@ vmmops_vcpu_init(void *vmi, struct vcpu *vcpu1, int vcpuid)
 	hyp->ctx[vcpuid] = hypctx;
 
 	aplic_cpuinit(hypctx);
+	vtimer_cpuinit(hypctx);
 
 	return (hypctx);
 }
@@ -332,7 +336,7 @@ loongarch_gen_inst_emul_data(struct hypctx *hypctx, struct vm_exit *vme_ret,
 	int sign_extend;
 	int access_size;
 
-	guest_addr = vme_ret->sepc;
+	guest_addr = vme_ret->era;
 
 	KASSERT(vme_ret->scause == SCAUSE_FETCH_GUEST_PAGE_FAULT ||
 	    vme_ret->scause == SCAUSE_LOAD_GUEST_PAGE_FAULT ||
@@ -448,7 +452,6 @@ loongarch_handle_world_switch(struct hypctx *hypctx, struct vm_exit *vme,
 	uint64_t insn;
 	uint64_t gpa;
 	bool handled;
-	bool retu;
 	int ret;
 	int i;
 
@@ -488,22 +491,18 @@ loongarch_handle_world_switch(struct hypctx *hypctx, struct vm_exit *vme,
 		 * TODO: handle illegal instruction properly.
 		 */
 		printf("%s: Illegal instruction at %lx stval 0x%lx htval "
-		    "0x%lx\n", __func__, vme->sepc, vme->stval, vme->htval);
+		    "0x%lx\n", __func__, vme->era, vme->stval, vme->htval);
 		vmm_stat_incr(hypctx->vcpu, VMEXIT_UNHANDLED, 1);
 		vme->exitcode = VM_EXITCODE_BOGUS;
 		handled = false;
 		break;
 	case SCAUSE_VIRTUAL_SUPERVISOR_ECALL:
-		retu = false;
-		vmm_sbi_ecall(hypctx->vcpu, &retu);
-		if (retu == false) {
-			handled = true;
+		handled = vmm_sbi_ecall(hypctx->vcpu);
+		if (handled == true)
 			break;
-		}
 		for (i = 0; i < nitems(vme->u.ecall.args); i++)
 			vme->u.ecall.args[i] = hypctx->guest_regs.hyp_a[i];
 		vme->exitcode = VM_EXITCODE_ECALL;
-		handled = false;
 		break;
 	case SCAUSE_VIRTUAL_INSTRUCTION:
 		insn = vme->stval;
@@ -535,17 +534,23 @@ vmmops_gla2gpa(void *vcpui, struct vm_guest_paging *paging, uint64_t gla,
 }
 
 void
-loongarch_send_ipi(struct hypctx *hypctx, int hart_id)
+loongarch_send_ipi(struct hyp *hyp, cpuset_t *cpus)
 {
-	struct hyp *hyp;
+	struct hypctx *hypctx;
 	struct vm *vm;
+	uint16_t maxcpus;
+	int i;
 
-	hyp = hypctx->hyp;
 	vm = hyp->vm;
 
-	atomic_set_32(&hypctx->ipi_pending, 1);
-
-	vcpu_notify_event(vm_vcpu(vm, hart_id));
+	maxcpus = vm_get_maxcpus(hyp->vm);
+	for (i = 0; i < maxcpus; i++) {
+		if (!CPU_ISSET(i, cpus))
+			continue;
+		hypctx = hyp->ctx[i];
+		atomic_set_32(&hypctx->ipi_pending, 1);
+		vcpu_notify_event(vm_vcpu(vm, i));
+	}
 }
 
 int
@@ -561,28 +566,35 @@ loongarch_check_ipi(struct hypctx *hypctx, bool clear)
 	return (val);
 }
 
+bool
+loongarch_check_interrupts_pending(struct hypctx *hypctx)
+{
+
+	if (hypctx->interrupts_pending)
+		return (true);
+
+	return (false);
+}
+
 static void
 loongarch_sync_interrupts(struct hypctx *hypctx)
 {
 	int pending;
 
 	pending = aplic_check_pending(hypctx);
-
 	if (pending)
 		hypctx->guest_csrs.hvip |= HVIP_VSEIP;
 	else
 		hypctx->guest_csrs.hvip &= ~HVIP_VSEIP;
 
-	csr_write(hvip, hypctx->guest_csrs.hvip);
-}
-
-static void
-loongarch_sync_ipi(struct hypctx *hypctx)
-{
-
 	/* Guest clears VSSIP bit manually. */
 	if (loongarch_check_ipi(hypctx, true))
 		hypctx->guest_csrs.hvip |= HVIP_VSSIP;
+
+	if (loongarch_check_interrupts_pending(hypctx))
+		hypctx->guest_csrs.hvip |= HVIP_VSTIP;
+	else
+		hypctx->guest_csrs.hvip &= ~HVIP_VSTIP;
 
 	csr_write(hvip, hypctx->guest_csrs.hvip);
 }
@@ -594,13 +606,14 @@ vmmops_run(void *vcpui, register_t pc, pmap_t pmap, struct vm_eventinfo *evinfo)
 	struct vm_exit *vme;
 	struct vcpu *vcpu;
 	register_t val;
+	uint64_t hvip;
 	bool handled;
 
 	hypctx = (struct hypctx *)vcpui;
 	vcpu = hypctx->vcpu;
 	vme = vm_exitinfo(vcpu);
 
-	hypctx->guest_regs.hyp_sepc = (uint64_t)pc;
+	hypctx->guest_regs.hyp_era = (uint64_t)pc;
 
 	vmmops_delegate();
 
@@ -615,7 +628,8 @@ vmmops_run(void *vcpui, register_t pc, pmap_t pmap, struct vm_eventinfo *evinfo)
 	__asm __volatile("hfence.gvma" ::: "memory");
 
 	csr_write(hgatp, pmap->pm_satp);
-	csr_write(henvcfg, HENVCFG_STCE);
+	if (has_sstc)
+		csr_write(henvcfg, HENVCFG_STCE);
 	csr_write(hie, HIE_VSEIE | HIE_VSSIE | HIE_SGEIE);
 	/* TODO: should we trap rdcycle / rdtime? */
 	csr_write(hcounteren, HCOUNTEREN_CY | HCOUNTEREN_TM);
@@ -653,12 +667,11 @@ vmmops_run(void *vcpui, register_t pc, pmap_t pmap, struct vm_eventinfo *evinfo)
 		 */
 		loongarch_set_active_vcpu(hypctx);
 		aplic_flush_hwstate(hypctx);
-
 		loongarch_sync_interrupts(hypctx);
-		loongarch_sync_ipi(hypctx);
+		vmm_fence_process(hypctx);
 
 		dprintf("%s: Entering guest VM, vsatp %lx, ss %lx hs %lx\n",
-		    __func__, csr_read(vsatp), hypctx->guest_regs.hyp_sstatus,
+		    __func__, csr_read(vsatp), hypctx->guest_regs.hyp_estat,
 		    hypctx->guest_regs.hyp_hstatus);
 
 		vmm_switch(hypctx);
@@ -666,15 +679,25 @@ vmmops_run(void *vcpui, register_t pc, pmap_t pmap, struct vm_eventinfo *evinfo)
 		dprintf("%s: Leaving guest VM, hstatus %lx\n", __func__,
 		    hypctx->guest_regs.hyp_hstatus);
 
+		/* Guest can clear VSSIP. It can't clear VSTIP or VSEIP. */
+		hvip = csr_read(hvip);
+		if ((hypctx->guest_csrs.hvip ^ hvip) & HVIP_VSSIP) {
+			if (hvip & HVIP_VSSIP) {
+				/* TODO: VSSIP was set by guest. */
+			} else {
+				/* VSSIP was cleared by guest. */
+				hypctx->guest_csrs.hvip &= ~HVIP_VSSIP;
+			}
+		}
+
 		aplic_sync_hwstate(hypctx);
-		loongarch_sync_interrupts(hypctx);
 
 		/*
 		 * TODO: deactivate stage 2 pmap here if needed.
 		 */
 
 		vme->scause = csr_read(scause);
-		vme->sepc = csr_read(sepc);
+		vme->era = csr_read(era);
 		vme->stval = csr_read(stval);
 		vme->htval = csr_read(htval);
 		vme->htinst = csr_read(htinst);
@@ -682,7 +705,7 @@ vmmops_run(void *vcpui, register_t pc, pmap_t pmap, struct vm_eventinfo *evinfo)
 		intr_restore(val);
 
 		vmm_stat_incr(vcpu, VMEXIT_COUNT, 1);
-		vme->pc = hypctx->guest_regs.hyp_sepc;
+		vme->pc = hypctx->guest_regs.hyp_era;
 		vme->inst_length = INSN_SIZE;
 
 		handled = loongarch_handle_world_switch(hypctx, vme, pmap);
@@ -691,7 +714,7 @@ vmmops_run(void *vcpui, register_t pc, pmap_t pmap, struct vm_eventinfo *evinfo)
 			break;
 		else {
 			/* Resume guest execution from the next instruction. */
-			hypctx->guest_regs.hyp_sepc += vme->inst_length;
+			hypctx->guest_regs.hyp_era += vme->inst_length;
 		}
 	}
 
@@ -727,6 +750,8 @@ vmmops_vcpu_cleanup(void *vcpui)
 
 	aplic_cpucleanup(hypctx);
 
+	mtx_destroy(&hypctx->fence_queue_mtx);
+	free(hypctx->fence_queue, M_HYP);
 	free(hypctx, M_HYP);
 }
 
@@ -818,7 +843,7 @@ hypctx_regptr(struct hypctx *hypctx, int reg)
 	case VM_REG_GUEST_T6:
 		return (&hypctx->guest_regs.hyp_t[6]);
 	case VM_REG_GUEST_SEPC:
-		return (&hypctx->guest_regs.hyp_sepc);
+		return (&hypctx->guest_regs.hyp_era);
 	default:
 		break;
 	}
@@ -903,6 +928,10 @@ vmmops_getcap(void *vcpui, int num, int *retval)
 	ret = ENOENT;
 
 	switch (num) {
+	case VM_CAP_SSTC:
+		*retval = has_sstc;
+		ret = 0;
+		break;
 	case VM_CAP_UNRESTRICTED_GUEST:
 		*retval = 1;
 		ret = 0;

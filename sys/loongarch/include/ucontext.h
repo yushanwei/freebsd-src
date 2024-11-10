@@ -56,16 +56,14 @@ struct gpregs {
 };
 
 struct fpregs {
-	__uint64_t      fp_a[8];	/* Floating point registers */
-	__uint64_t      fp_t[16];	/* Floating point registers */
-	__uint64_t      fp_s[8];	/* Floating point registers */
-	__uint64_t      fp_fcc;	/* Floating point CFR */
-	__uint32_t	fp_fcsr;	/* Floating point control reg */
+	__uint64_t	fp_x[32][2];	/* Floating point registers */
+	__uint64_t	fp_fcsr;	/* Floating point control reg */
+	__uint64_t	fp_fcc;		/* Floating point CFR */
 	int		fp_flags;
+	int		pad;
 };
 
 struct __mcontext {
-	__register_t    mc_pc;
 	struct gpregs	mc_gpregs;
 	struct fpregs	mc_fpregs;
 	int		mc_flags;

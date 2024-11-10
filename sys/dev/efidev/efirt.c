@@ -234,7 +234,7 @@ efi_init(void)
 		return (ENXIO);
 	}
 
-#if defined(__aarch64__) || defined(__amd64__)
+#if defined(__aarch64__) || defined(__amd64__) || defined(__loongarch__)
 	/*
 	 * Some UEFI implementations have multiple implementations of the
 	 * RS->GetTime function. They switch from one we can only use early
