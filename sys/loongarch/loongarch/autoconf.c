@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -32,61 +32,61 @@
  * SUCH DAMAGE.
  */
 
-#ifndef	_MACHINE_DB_MACHDEP_H_
-#define	_MACHINE_DB_MACHDEP_H_
+#include <sys/cdefs.h>
+/*
+ * Setup the system to run on the current machine.
+ *
+ * Configure() is called at boot time and initializes the vba
+ * device tables and the memory controller monitoring.  Available
+ * devices are determined (from possibilities mentioned in ioconf.c),
+ * and the drivers are initialized.
+ */
 
-#include <machine/loongarchreg.h>
-#include <machine/frame.h>
-#include <machine/trap.h>
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/kernel.h>
+#include <sys/cons.h>
 
-#define	T_BREAKPOINT	(SCAUSE_BREAKPOINT)
-#define	T_WATCHPOINT	(0)
+static void	configure_first(void *);
+static void	configure(void *);
+static void	configure_final(void *);
 
-typedef vm_offset_t	db_addr_t;
-typedef long		db_expr_t;
+SYSINIT(configure1, SI_SUB_CONFIGURE, SI_ORDER_FIRST, configure_first, NULL);
+/* SI_ORDER_SECOND is hookable */
+SYSINIT(configure2, SI_SUB_CONFIGURE, SI_ORDER_THIRD, configure, NULL);
+/* SI_ORDER_MIDDLE is hookable */
+SYSINIT(configure3, SI_SUB_CONFIGURE, SI_ORDER_ANY, configure_final, NULL);
 
-#define	PC_REGS()	((db_addr_t)kdb_frame->tf_regs.era)
+/*
+ * Determine i/o configuration for a machine.
+ */
+static void
+configure_first(void *dummy)
+{
 
-#define	BKPT_INST	(0x00100073)
-#define	BKPT_SIZE	(INSN_SIZE)
-#define	BKPT_SET(inst)	(BKPT_INST)
+	/* nexus0 is the top of the loongarch device tree */
+	device_add_child(root_bus, "nexus", 0);
+}
 
-#define	BKPT_SKIP do {							\
-	uint32_t _instr;						\
-									\
-	_instr = db_get_value(PC_REGS(), sizeof(uint32_t), FALSE);	\
-	if ((_instr & 0x3) == 0x3)					\
-		kdb_frame->tf_sepc += 4;	/* ebreak */		\
-	else								\
-		kdb_frame->tf_sepc += 2;	/* c.ebreak */		\
-} while (0)
+static void
+configure(void *dummy)
+{
 
-#define	db_clear_single_step	kdb_cpu_clear_singlestep
-#define	db_set_single_step	kdb_cpu_set_singlestep
+	/* initialize new bus architecture */
+	root_bus_configure();
+}
 
-#define	IS_BREAKPOINT_TRAP(type, code)	(type == T_BREAKPOINT)
-#define	IS_WATCHPOINT_TRAP(type, code)	(type == T_WATCHPOINT)
+static void
+configure_final(void *dummy)
+{
 
-#define	inst_trap_return(ins)	(ins == 0x10000073)	/* eret */
-#define	inst_return(ins)	(ins == 0x00008067)	/* ret */
-#define	inst_call(ins)		(((ins) & 0x7f) == 111 || \
-				 ((ins) & 0x7f) == 103) /* jal, jalr */
+	intr_enable();
 
-#define	inst_load(ins) ({							\
-	uint32_t tmp_instr = db_get_value(PC_REGS(), sizeof(uint32_t), FALSE);	\
-	is_load_instr(tmp_instr);						\
-})
+	cninit_finish();
 
-#define	inst_store(ins) ({							\
-	uint32_t tmp_instr = db_get_value(PC_REGS(), sizeof(uint32_t), FALSE);	\
-	is_store_instr(tmp_instr);						\
-})
+	if (bootverbose)
+		printf("Device configuration finished.\n");
 
-#define	is_load_instr(ins)	(((ins) & 0x7f) == 3)
-#define	is_store_instr(ins)	(((ins) & 0x7f) == 35)
-
-#define	next_instr_address(pc, bd)	((bd) ? (pc) : ((pc) + 4))
-
-#define	DB_ELFSIZE		64
-
-#endif /* !_MACHINE_DB_MACHDEP_H_ */
+	cold = 0;
+}

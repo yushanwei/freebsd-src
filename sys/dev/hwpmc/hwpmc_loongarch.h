@@ -1,10 +1,9 @@
 /*-
- * Copyright (c) 2017 Andrew Turner
+ * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
- * This software was developed by SRI International and the University of
- * Cambridge Computer Laboratory under DARPA/AFRL contract FA8750-10-C-0237
- * ("CTSRD"), as part of the DARPA CRASH research programme.
+ * This software was developed by the University of Cambridge Computer
+ * Laboratory with support from ARM Ltd.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -18,7 +17,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -28,31 +27,23 @@
  * SUCH DAMAGE.
  */
 
-#ifndef __MACHINE_INCLUDE_EFI_H_
-#define __MACHINE_INCLUDE_EFI_H_
+#ifndef _DEV_HWPMC_LOONGARCH_H_
+#define	_DEV_HWPMC_LOONGARCH_H_
 
-#define	EFIABI_ATTR
+#define	LOONGARCH_PMC_CAPS	(PMC_CAP_INTERRUPT | PMC_CAP_USER |	\
+				 PMC_CAP_SYSTEM | PMC_CAP_EDGE |	\
+				 PMC_CAP_THRESHOLD | PMC_CAP_READ |	\
+				 PMC_CAP_WRITE | PMC_CAP_INVERT |	\
+				 PMC_CAP_QUALIFIER)
+
+#define	LOONGARCH_RELOAD_COUNT_TO_PERFCTR_VALUE(R)	(-(R))
+#define	LOONGARCH_PERFCTR_VALUE_TO_RELOAD_COUNT(P)	(-(P))
+#define	EVENT_ID_MASK	0xFF
 
 #ifdef _KERNEL
-#define ARCH_MAY_USE_EFI
-
-#define	EFI_TIME_LOCK()
-#define	EFI_TIME_UNLOCK()
-#define	EFI_TIME_OWNED()
-
-#define	EFI_RT_HANDLE_FAULTS_DEFAULT	1
-#endif
-
-struct efirt_callinfo {
-	const char	*ec_name;
-	register_t	ec_efi_status;
-	register_t	ec_fptr;
-	register_t	ec_argcnt;
-	register_t	ec_arg1;
-	register_t	ec_arg2;
-	register_t	ec_arg3;
-	register_t	ec_arg4;
-	register_t	ec_arg5;
+/* MD extension for 'struct pmc' */
+struct pmc_md_loongarch_pmc {
+	uint32_t	pm_loongarch_evsel;
 };
-
-#endif /* __MACHINE_INCLUDE_EFI_H_ */
+#endif /* _KERNEL */
+#endif /* _DEV_HWPMC_LOONGARCH_H_ */
