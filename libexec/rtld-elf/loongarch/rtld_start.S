@@ -36,24 +36,24 @@
 /*
  * func_ptr_type
  * _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
+ *	.cfi_undefined ra	 Do not attempt to unwind any further.
  */
 
 ENTRY(.rtld_start)
-	.cfi_undefined ra	/* Do not attempt to unwind any further. */
-	mv	s0, a0		/* Put ps_strings in a callee-saved register */
-	mv	s1, sp		/* And the stack pointer */
+	move	s0, a0		/* Put ps_strings in a callee-saved register */
+	move	s1, sp		/* And the stack pointer */
 
-	addi	sp, sp, -16	/* Make room for obj_main & exit proc */
+	ADDI	sp, sp, -16	/* Make room for obj_main & exit proc */
 
-	mv	a1, sp		/* exit_proc */
-	addi	a2, a1, 8	/* obj_main */
-	jal	_rtld		/* Call the loader */
-	mv	t0, a0		/* Backup the entry point */
+	move	a1, sp		/* exit_proc */
+	ADDI	a2, a1, 8	/* obj_main */
+	bl	_rtld		/* Call the loader */
+	move	t0, a0		/* Backup the entry point */
 
-	ld	a2, 0(sp)	/* Load cleanup */
-	ld	a1, 8(sp)	/* Load obj_main */
-	mv	a0, s0		/* Restore ps_strings */
-	mv	sp, s1		/* Restore the stack pointer */
+	LD	a2, sp, 0	/* Load cleanup */
+	LD	a1, sp, 8	/* Load obj_main */
+	move	a0, s0		/* Restore ps_strings */
+	move	sp, s1		/* Restore the stack pointer */
 	jr	t0		/* Jump to the entry point */
 END(.rtld_start)
 
@@ -64,65 +64,65 @@ END(.rtld_start)
 ENTRY(_rtld_bind_start)
 	/* Save the arguments and ra */
 	/* We require 17 dwords, but the stack must be aligned to 16-bytes */
-	addi	sp, sp, -(8 * 18)
-	sd	a0, (8 * 0)(sp)
-	sd	a1, (8 * 1)(sp)
-	sd	a2, (8 * 2)(sp)
-	sd	a3, (8 * 3)(sp)
-	sd	a4, (8 * 4)(sp)
-	sd	a5, (8 * 5)(sp)
-	sd	a6, (8 * 6)(sp)
-	sd	a7, (8 * 7)(sp)
-	sd	ra, (8 * 8)(sp)
+	ADDI	sp, sp, -(8 * 18)
+        ST   a0, sp,(8 * 0)
+        ST   a1, sp,(8 * 1)
+        ST   a2, sp,(8 * 2)
+        ST   a3, sp,(8 * 3)
+        ST   a4, sp,(8 * 4)
+        ST   a5, sp,(8 * 5)
+        ST   a6, sp,(8 * 6)
+        ST   a7, sp,(8 * 7)
+        ST   ra, sp,(8 * 8)
 
-#ifdef __riscv_float_abi_double
+#ifdef __loongarch_double_float
 	/* Save any floating-point arguments */
-	fsd	fa0, (8 * 9)(sp)
-	fsd	fa1, (8 * 10)(sp)
-	fsd	fa2, (8 * 11)(sp)
-	fsd	fa3, (8 * 12)(sp)
-	fsd	fa4, (8 * 13)(sp)
-	fsd	fa5, (8 * 14)(sp)
-	fsd	fa6, (8 * 15)(sp)
-	fsd	fa7, (8 * 16)(sp)
+        FST  fa0, sp,(8 * 9)
+        FST  fa1, sp,(8 * 10)
+        FST  fa2, sp,(8 * 11)
+        FST  fa3, sp,(8 * 12)
+        FST  fa4, sp,(8 * 13)
+        FST  fa5, sp,(8 * 14)
+        FST  fa6, sp,(8 * 15)
+        FST  fa7, sp,(8 * 16)
 #endif
 
 	/* Reloc offset is 3x of the .got.plt offset */
-	slli	a1, t1, 1	/* Mult items by 2 */
-	add	a1, a1, t1	/* Plus item */
+	SLLI	a1, t1, 1	/* Mult items by 2 */
+	ADD	a1, a1, t1	/* Plus item */
 
 	/* Load obj */
-	mv	a0, t0
+	move	a0, t0
 
 	/* Call into rtld */
-	jal	_rtld_bind
+	bl	_rtld_bind
 
 	/* Backup the address to branch to */
-	mv	t0, a0
+	move	t0, a0
 
 	/* Restore the arguments and ra */
-	ld	a0, (8 * 0)(sp)
-	ld	a1, (8 * 1)(sp)
-	ld	a2, (8 * 2)(sp)
-	ld	a3, (8 * 3)(sp)
-	ld	a4, (8 * 4)(sp)
-	ld	a5, (8 * 5)(sp)
-	ld	a6, (8 * 6)(sp)
-	ld	a7, (8 * 7)(sp)
-	ld	ra, (8 * 8)(sp)
+        LD   a0, sp,(8 * 0)
+        LD   a1, sp,(8 * 1)
+        LD   a2, sp,(8 * 2)
+        LD   a3, sp,(8 * 3)
+        LD   a4, sp,(8 * 4)
+        LD   a5, sp,(8 * 5)
+        LD   a6, sp,(8 * 6)
+        LD   a7, sp,(8 * 7)
+        LD   ra, sp,(8 * 8)
 
-#ifdef __riscv_float_abi_double
+#ifdef __loongarch_double_float
 	/* Restore floating-point arguments */
-	fld	fa0, (8 * 9)(sp)
-	fld	fa1, (8 * 10)(sp)
-	fld	fa2, (8 * 11)(sp)
-	fld	fa3, (8 * 12)(sp)
-	fld	fa4, (8 * 13)(sp)
-	fld	fa5, (8 * 14)(sp)
-	fld	fa6, (8 * 15)(sp)
-	fld	fa7, (8 * 16)(sp)
+        FLD  fa0, sp,(8 * 9)
+        FLD  fa1, sp,(8 * 10)
+        FLD  fa2, sp,(8 * 11)
+        FLD  fa3, sp,(8 * 12)
+        FLD  fa4, sp,(8 * 13)
+        FLD  fa5, sp,(8 * 14)
+        FLD  fa6, sp,(8 * 15)
+        FLD  fa7, sp,(8 * 16)
 #endif
-	addi	sp, sp, (8 * 18)
+	ADDI	sp, sp, (8 * 18)
 
 	/* Call into the correct function */
 	jr	t0
