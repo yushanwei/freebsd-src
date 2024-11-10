@@ -40,8 +40,9 @@
 #include <sys/conf.h>
 #include <sys/kdb.h>
 #include <machine/bus.h>
+#if defined(__riscv)
 #include <machine/sbi.h>
-
+#enfif
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
 #include <dev/uart/uart_cpu_fdt.h>

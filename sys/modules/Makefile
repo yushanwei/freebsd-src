@@ -464,7 +464,8 @@ SUBDIR+=	cuse
 .endif
 
 .if ${MK_EFI} != "no"
-.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" \
+	|| ${MACHINE_CPUARCH} == "loongarch"
 _efirt=		efirt
 .endif
 .endif
@@ -640,7 +641,7 @@ _rtwnfw=	rtwnfw
 
 .if ${MK_SOURCELESS_UCODE} != "no" && ${MACHINE_CPUARCH} != "arm" && \
 	${MACHINE_ARCH} != "powerpc" && ${MACHINE_ARCH} != "powerpcspe" && \
-	${MACHINE_CPUARCH} != "riscv"
+	${MACHINE_CPUARCH} != "riscv" && ${MACHINE_CPUARCH} != "loongarch"
 _cxgbe=		cxgbe
 .endif
 
@@ -668,7 +669,7 @@ _irdma=		irdma
 .endif
 
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "arm" || \
-	${MACHINE_CPUARCH} == "riscv"
+	${MACHINE_CPUARCH} == "riscv" || ${MACHINE_CPUARCH} == "loongarch"
 .if !empty(OPT_FDT)
 _if_cgem=	if_cgem
 .endif

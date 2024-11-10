@@ -59,7 +59,7 @@ static u_int			akva_devmap_idx;
 #endif
 static vm_offset_t		akva_devmap_vaddr = DEVMAP_MAX_VADDR;
 
-#if defined(__aarch64__) || defined(__riscv)
+#if defined(__aarch64__) || defined(__riscv) || defined(__loongarch__)
 extern int early_boot;
 #endif
 
@@ -262,7 +262,7 @@ pmap_mapdev(vm_paddr_t pa, vm_size_t size)
 	pa = trunc_page(pa);
 	size = round_page(size + offset);
 
-#if defined(__aarch64__) || defined(__riscv)
+#if defined(__aarch64__) || defined(__riscv) || defined(__loongarch__)
 	if (early_boot) {
 		akva_devmap_vaddr = trunc_page(akva_devmap_vaddr - size);
 		va = akva_devmap_vaddr;
@@ -286,7 +286,7 @@ pmap_mapdev(vm_paddr_t pa, vm_size_t size)
 	return ((void *)(va + offset));
 }
 
-#if defined(__aarch64__) || defined(__riscv)
+#if defined(__aarch64__) || defined(__riscv) || defined(__loongarch__)
 void *
 pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 {
