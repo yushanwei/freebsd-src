@@ -469,7 +469,8 @@ SUBDIR+=	cuse
 .endif
 
 .if ${MK_EFI} != "no"
-.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" \
+	|| ${MACHINE_CPUARCH} == "loongarch"
 _efirt=		efirt
 .endif
 .endif

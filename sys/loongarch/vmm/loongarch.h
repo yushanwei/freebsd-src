@@ -38,6 +38,8 @@
 #include <machine/pcpu.h>
 #include <machine/vmm.h>
 
+#include <loongarch/vmm/vmm_vtimer.h>
+
 struct hypregs {
 	uint64_t hyp_ra;
 	uint64_t hyp_sp;
@@ -46,23 +48,37 @@ struct hypregs {
 	uint64_t hyp_t[7];
 	uint64_t hyp_s[12];
 	uint64_t hyp_a[8];
-	uint64_t hyp_sepc;
-	uint64_t hyp_sstatus;
+	uint64_t hyp_era;
+	uint64_t hyp_estat;
 	uint64_t hyp_hstatus;
 };
 
 struct hypcsr {
 	uint64_t hvip;
-	uint64_t vsstatus;
+	uint64_t vestat;
 	uint64_t vsie;
 	uint64_t vstvec;
 	uint64_t vsscratch;
-	uint64_t vsepc;
+	uint64_t vera;
 	uint64_t vscause;
 	uint64_t vstval;
 	uint64_t vsatp;
 	uint64_t scounteren;
 	uint64_t senvcfg;
+};
+
+enum vmm_fence_type {
+	VMM_LOONGARCH_FENCE_INVALID = 0,
+	VMM_LOONGARCH_FENCE_I,
+	VMM_LOONGARCH_FENCE_VMA,
+	VMM_LOONGARCH_FENCE_VMA_ASID,
+};
+
+struct vmm_fence {
+	enum vmm_fence_type type;
+	size_t start;
+	size_t size;
+	uint64_t asid;
 };
 
 struct hypctx {
@@ -78,6 +94,16 @@ struct hypctx {
 	bool has_exception;
 	int cpu_id;
 	int ipi_pending;
+	int interrupts_pending;
+	struct vtimer vtimer;
+
+	struct vmm_fence *fence_queue;
+	struct mtx fence_queue_mtx;
+	int fence_queue_head;
+	int fence_queue_tail;
+#define	FENCE_REQ_I	(1 << 0)
+#define	FENCE_REQ_VMA	(1 << 1)
+	int fence_req;
 };
 
 struct hyp {
@@ -89,7 +115,7 @@ struct hyp {
 };
 
 struct hyptrap {
-	uint64_t sepc;
+	uint64_t era;
 	uint64_t scause;
 	uint64_t stval;
 	uint64_t htval;
@@ -124,9 +150,10 @@ DEFINE_VMMOPS_IFUNC(void, vmspace_free, (struct vmspace *vmspace))
 struct hypctx *loongarch_get_active_vcpu(void);
 void vmm_switch(struct hypctx *);
 void vmm_unpriv_trap(struct hyptrap *, uint64_t tmp);
-int vmm_sbi_ecall(struct vcpu *, bool *);
+bool vmm_sbi_ecall(struct vcpu *);
 
-void loongarch_send_ipi(struct hypctx *hypctx, int hart_id);
+void loongarch_send_ipi(struct hyp *hyp, cpuset_t *cpus);
 int loongarch_check_ipi(struct hypctx *hypctx, bool clear);
+bool loongarch_check_interrupts_pending(struct hypctx *hypctx);
 
 #endif /* !_VMM_LOONGARCH_H_ */

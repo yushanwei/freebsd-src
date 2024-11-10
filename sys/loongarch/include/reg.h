@@ -58,12 +58,9 @@ struct reg {
 };
 
 struct fpreg {
-	__uint64_t      fp_a[8];	/* Floating point registers */
-	__uint64_t      fp_t[16];	/* Floating point registers */
-	__uint64_t      fp_s[8];	/* Floating point registers */
-	__uint64_t      fp_fcc;		/* Floating point CFR */
-	int      	fp_fcsr;	/* Floating point control reg */
-	int		t;
+	__uint64_t	fp_x[32][2];	/* Floating point registers */
+	__uint64_t	fp_fcsr;	/* Floating point control reg */
+	__uint64_t	fp_fcc;		/* Floating point CFR */
 };
 
 struct dbreg {
