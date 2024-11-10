@@ -51,7 +51,7 @@ static struct devmap_entry	akva_devmap_entries[AKVA_DEVMAP_MAX_ENTRIES];
 static u_int			akva_devmap_idx;
 static vm_offset_t		akva_devmap_vaddr = DEVMAP_MAX_VADDR;
 
-#if defined(__aarch64__) || defined(__riscv)
+#if defined(__aarch64__) || defined(__riscv) || defined(__loongarch__)
 extern int early_boot;
 #endif
 
@@ -184,7 +184,7 @@ devmap_bootstrap(void)
 #if defined(__arm__)
 		pmap_preboot_map_attr(pd->pd_pa, pd->pd_va, pd->pd_size,
 		    VM_PROT_READ | VM_PROT_WRITE, VM_MEMATTR_DEVICE);
-#elif defined(__aarch64__) || defined(__riscv)
+#elif defined(__aarch64__) || defined(__riscv) || defined(__loongarch__)
 		pmap_kenter_device(pd->pd_va, pd->pd_size, pd->pd_pa);
 #endif
 	}
@@ -257,7 +257,7 @@ pmap_mapdev(vm_paddr_t pa, vm_size_t size)
 	pa = trunc_page(pa);
 	size = round_page(size + offset);
 
-#if defined(__aarch64__) || defined(__riscv)
+#if defined(__aarch64__) || defined(__riscv) || defined(__loongarch__)
 	if (early_boot) {
 		akva_devmap_vaddr = trunc_page(akva_devmap_vaddr - size);
 		va = akva_devmap_vaddr;
@@ -281,7 +281,7 @@ pmap_mapdev(vm_paddr_t pa, vm_size_t size)
 	return ((void *)(va + offset));
 }
 
-#if defined(__aarch64__) || defined(__riscv)
+#if defined(__aarch64__) || defined(__riscv) || defined(__loongarch__)
 void *
 pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 {
