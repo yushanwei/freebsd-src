@@ -1,5 +1,7 @@
 /*-
- * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -32,61 +34,38 @@
  * SUCH DAMAGE.
  */
 
-#ifndef	_MACHINE_DB_MACHDEP_H_
-#define	_MACHINE_DB_MACHDEP_H_
+#include "assym.inc"
 
-#include <machine/loongarchreg.h>
-#include <machine/frame.h>
-#include <machine/trap.h>
+#include <sys/syscall.h>
 
-#define	T_BREAKPOINT	(SCAUSE_BREAKPOINT)
-#define	T_WATCHPOINT	(0)
+#include <machine/asm.h>
 
-typedef vm_offset_t	db_addr_t;
-typedef long		db_expr_t;
+/*
+ * This code is copied to the user's stack for returning from signal handlers
+ * (see sendsig() and sigreturn()). We have to compute the address of the
+ * sigcontext struct for the sigreturn call.
+ */
+ENTRY(sigcode)
+	mv	a0, sp
+	addi	a0, a0, SF_UC
 
-#define	PC_REGS()	((db_addr_t)kdb_frame->tf_regs.era)
+1:
+	li	t0, SYS_sigreturn
+	ecall
 
-#define	BKPT_INST	(0x00100073)
-#define	BKPT_SIZE	(INSN_SIZE)
-#define	BKPT_SET(inst)	(BKPT_INST)
+	/* sigreturn failed, exit */
+	li	t0, SYS_exit
+	ecall
 
-#define	BKPT_SKIP do {							\
-	uint32_t _instr;						\
-									\
-	_instr = db_get_value(PC_REGS(), sizeof(uint32_t), FALSE);	\
-	if ((_instr & 0x3) == 0x3)					\
-		kdb_frame->tf_sepc += 4;	/* ebreak */		\
-	else								\
-		kdb_frame->tf_sepc += 2;	/* c.ebreak */		\
-} while (0)
+	j	1b
+END(sigcode)
 
-#define	db_clear_single_step	kdb_cpu_clear_singlestep
-#define	db_set_single_step	kdb_cpu_set_singlestep
+	/* This may be copied to the stack, keep it 16-byte aligned */
+	.align	3
+esigcode:
 
-#define	IS_BREAKPOINT_TRAP(type, code)	(type == T_BREAKPOINT)
-#define	IS_WATCHPOINT_TRAP(type, code)	(type == T_WATCHPOINT)
-
-#define	inst_trap_return(ins)	(ins == 0x10000073)	/* eret */
-#define	inst_return(ins)	(ins == 0x00008067)	/* ret */
-#define	inst_call(ins)		(((ins) & 0x7f) == 111 || \
-				 ((ins) & 0x7f) == 103) /* jal, jalr */
-
-#define	inst_load(ins) ({							\
-	uint32_t tmp_instr = db_get_value(PC_REGS(), sizeof(uint32_t), FALSE);	\
-	is_load_instr(tmp_instr);						\
-})
-
-#define	inst_store(ins) ({							\
-	uint32_t tmp_instr = db_get_value(PC_REGS(), sizeof(uint32_t), FALSE);	\
-	is_store_instr(tmp_instr);						\
-})
-
-#define	is_load_instr(ins)	(((ins) & 0x7f) == 3)
-#define	is_store_instr(ins)	(((ins) & 0x7f) == 35)
-
-#define	next_instr_address(pc, bd)	((bd) ? (pc) : ((pc) + 4))
-
-#define	DB_ELFSIZE		64
-
-#endif /* !_MACHINE_DB_MACHDEP_H_ */
+	.data
+	.align	3
+	.global	szsigcode
+szsigcode:
+	.quad	esigcode - sigcode
