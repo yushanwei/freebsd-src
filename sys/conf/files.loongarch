@@ -1,0 +1,60 @@
+cddl/dev/dtrace/loongarch/dtrace_asm.S			optional dtrace compile-with "${DTRACE_S}"
+cddl/dev/dtrace/loongarch/dtrace_isa.c			optional dtrace compile-with "${DTRACE_C}"
+cddl/dev/dtrace/loongarch/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"
+cddl/dev/dtrace/loongarch/instr_size.c			optional dtrace compile-with "${DTRACE_C}"
+cddl/dev/fbt/loongarch/fbt_isa.c				optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
+crypto/des/des_enc.c		optional	netsmb
+dev/pci/pci_host_generic.c	optional	pci
+kern/msi_if.m			standard
+kern/pic_if.m			standard
+kern/subr_devmap.c		standard
+kern/subr_dummy_vdso_tc.c	standard
+kern/subr_intr.c		standard
+kern/subr_physmem.c		standard
+libkern/bcopy.c			standard
+libkern/memcmp.c		standard
+libkern/memset.c		standard
+libkern/strcmp.c		standard
+libkern/strlen.c		standard
+libkern/strncmp.c		standard
+loongarch/loongarch/autoconf.c		standard
+loongarch/loongarch/bus_machdep.c	standard
+loongarch/loongarch/bus_space_asm.S	standard
+loongarch/loongarch/busdma_bounce.c	standard
+loongarch/loongarch/busdma_machdep.c	standard
+loongarch/loongarch/clock.c		standard
+loongarch/loongarch/copyinout.S		standard
+loongarch/loongarch/cpufunc_asm.S	standard
+loongarch/loongarch/db_disasm.c		optional	ddb
+loongarch/loongarch/db_interface.c	optional	ddb
+loongarch/loongarch/db_trace.c		optional	ddb
+loongarch/loongarch/dump_machdep.c	standard
+loongarch/loongarch/efirt_machdep.c     optional        efirt
+loongarch/loongarch/efirt_support.S     optional        efirt
+loongarch/loongarch/elf_machdep.c	standard
+loongarch/loongarch/exception.S		standard
+loongarch/loongarch/exec_machdep.c	standard
+loongarch/loongarch/fpe.c		standard
+loongarch/loongarch/gdb_machdep.c	optional	gdb
+loongarch/loongarch/intc.c		standard
+loongarch/loongarch/identcpu.c		standard
+loongarch/loongarch/locore.S		standard	no-obj
+loongarch/loongarch/machdep.c		standard
+loongarch/loongarch/minidump_machdep.c	standard
+loongarch/loongarch/mp_machdep.c	optional	smp
+loongarch/loongarch/mem.c		standard
+loongarch/loongarch/nexus.c		standard
+loongarch/loongarch/pmap.c		standard
+loongarch/loongarch/ptrace_machdep.c	standard
+loongarch/loongarch/stack_machdep.c	optional	ddb | stack
+loongarch/loongarch/support.S		standard
+loongarch/loongarch/swtch.S		standard
+loongarch/loongarch/sys_machdep.c	standard
+loongarch/loongarch/trap.c		standard
+loongarch/loongarch/timer.c		standard
+loongarch/loongarch/uio_machdep.c	standard
+loongarch/loongarch/unwind.c		optional	ddb | kdtrace_hooks | stack
+loongarch/loongarch/vm_machdep.c	standard
+
+# Zstd
+contrib/zstd/lib/freebsd/zstd_kfreebsd.c		optional zstdio compile-with ${ZSTD_C}

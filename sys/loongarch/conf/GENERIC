@@ -1,0 +1,95 @@
+#
+# GENERIC -- Generic kernel configuration file for FreeBSD/LoongArch
+#
+# For more information on this file, please read the config(5) manual page,
+# and/or the handbook section on Kernel Configuration Files:
+#
+#    https://docs.freebsd.org/en/books/handbook/kernelconfig/#kernelconfig-config
+#
+# The handbook is also available locally in /usr/share/doc/handbook
+# if you've installed the doc distribution, otherwise always see the
+# FreeBSD World Wide Web server (https://www.FreeBSD.org/) for the
+# latest information.
+#
+# An exhaustive list of options and more detailed explanations of the
+# device lines is also present in the ../../conf/NOTES and NOTES files.
+# If you are in doubt as to the purpose or necessity of a line, check first
+# in NOTES.
+#
+
+cpu		LoongArch
+ident		GENERIC
+
+#makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
+#makeoptions	WITH_CTF=1		# Run ctfconvert(1) for DTrace support
+makeoptions     NO_MODULES=1            # We don't yet support modules
+
+options 	SCHED_ULE		# ULE scheduler
+options 	PREEMPTION		# Enable kernel thread preemption
+# options 	VIMAGE			# Subsystem virtualization, e.g. VNET
+options 	INET			# InterNETworking
+options 	INET6			# IPv6 communications protocols
+options 	TCP_HHOOK		# hhook(9) framework for TCP
+options 	IPSEC_SUPPORT		# Allow kldload of ipsec and tcpmd5
+options 	ROUTE_MPATH		# Multipath routing support
+options 	TCP_OFFLOAD		# TCP offload
+options 	TCP_BLACKBOX		# Enhanced TCP event logging
+options 	TCP_RFC7413		# TCP Fast Open
+options 	SCTP_SUPPORT		# Allow kldload of SCTP
+options 	FFS			# Berkeley Fast Filesystem
+options 	SOFTUPDATES		# Enable FFS soft updates support
+options 	UFS_ACL			# Support for access control lists
+options 	UFS_DIRHASH		# Improve performance on big directories
+options 	UFS_GJOURNAL		# Enable gjournal-based UFS journaling
+options 	QUOTA			# Enable disk quotas for UFS
+#options 	NFSCL			# Network Filesystem Client
+#options 	NFSD			# Network Filesystem Server
+#options 	NFSLOCKD		# Network Lock Manager
+#options 	NFS_ROOT		# NFS usable as /, requires NFSCL
+#options 	MSDOSFS			# MSDOS Filesystem
+#options 	CD9660			# ISO 9660 Filesystem
+options 	PROCFS			# Process filesystem (requires PSEUDOFS)
+options 	PSEUDOFS		# Pseudo-filesystem framework
+options 	TMPFS			# Efficient memory filesystem
+options         GEOM_PART_GPT           # GUID Partition Tables.
+options 	GEOM_LABEL		# Provides labelization
+options 	SCSI_DELAY=5000		# Delay (in ms) before probing SCSI
+#options 	KTRACE			# ktrace(1) support
+# options 	STACK			# stack(9) support
+options 	SYSVSHM			# SYSV-style shared memory
+options 	SYSVMSG			# SYSV-style message queues
+options 	SYSVSEM			# SYSV-style semaphores
+options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
+options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
+options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
+# options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
+options 	AUDIT			# Security event auditing
+options 	CAPABILITY_MODE		# Capsicum capability mode
+options 	CAPABILITIES		# Capsicum capabilities
+options 	MAC			# TrustedBSD MAC Framework
+# options 	KDTRACE_FRAME		# Ensure frames are compiled in
+# options 	KDTRACE_HOOKS		# Kernel DTrace hooks
+# options 	DDB_CTF			# Kernel ELF linker loads CTF data
+options 	RACCT			# Resource accounting framework
+options 	RACCT_DEFAULT_TO_DISABLED # Set kern.racct.enable=0 by default
+options 	RCTL			# Resource limits
+# options 	SMP
+
+# Console
+device		vt
+device		vt_efifb		# EFI framebuffer
+device		kbdmux
+
+# Pseudo devices.
+# device		crypto		# core crypto support
+device		loop		# Network loopback
+device		ether		# Ethernet support
+device		vlan		# 802.1Q VLAN support
+device		tuntap		# Packet tunnel.
+device		md		# Memory "disks"
+device		gif		# IPv6 and IPv4 tunneling
+device		firmware	# firmware assist module
+
+# EFI devices
+device          efidev                  # EFI pseudo-device
+device          efirtc                  # EFI RTC
