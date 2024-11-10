@@ -59,7 +59,7 @@ static u_int			akva_devmap_idx;
 #endif
 static vm_offset_t		akva_devmap_vaddr = DEVMAP_MAX_VADDR;
 
-#if defined(__aarch64__) || defined(__riscv)
+#if defined(__aarch64__) || defined(__riscv) || defined(__loongarch__)
 extern int early_boot;
 #endif
 
