@@ -856,6 +856,11 @@ typedef struct {
 #define	NT_GNU_BUILD_ID		3
 #define	NT_GNU_GOLD_VERSION	4
 #define	NT_GNU_PROPERTY_TYPE_0	5
+#define NT_AUXV         6
+#define NT_PRXFPREG     0x46E62B7FU
+#define NT_PSTATUS      10
+#define NT_PSINFO       13
+#define NT_LWPSTATUS    16
 
 #define	GNU_PROPERTY_LOPROC			0xc0000000
 #define	GNU_PROPERTY_HIPROC			0xdfffffff
