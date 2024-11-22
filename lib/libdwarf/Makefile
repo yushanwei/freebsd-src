@@ -72,8 +72,7 @@ SRCS=	\
 	libdwarf_reloc.c	\
 	libdwarf_rw.c		\
 	libdwarf_sections.c	\
-	libdwarf_str.c		\
-	zlib_stub.c
+	libdwarf_str.c
 
 INCS=		dwarf.h libdwarf.h
 
