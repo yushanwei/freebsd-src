@@ -238,7 +238,7 @@ NMFLAGS		?=
 OBJC		?=	cc
 OBJCFLAGS	?=	${OBJCINCLUDES} ${CFLAGS} -Wno-import
 
-OBJCOPY		?=	llvm-objcopy
+OBJCOPY		?=	objcopy
 
 PC		?=	pc
 PFLAGS		?=
