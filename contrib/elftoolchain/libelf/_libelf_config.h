@@ -67,6 +67,12 @@
 #define	LIBELF_BYTEORDER	ELFDATA2LSB
 #define	LIBELF_CLASS		ELFCLASS64
 
+#elif	defined(__loongarch__)
+
+#define	LIBELF_ARCH		EM_LOONGARCH
+#define	LIBELF_BYTEORDER	ELFDATA2LSB
+#define	LIBELF_CLASS		ELFCLASS64
+
 #elif	defined(__mips__)
 
 #define	LIBELF_ARCH		EM_MIPS
