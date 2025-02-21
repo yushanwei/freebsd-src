@@ -24,6 +24,8 @@
  * SUCH DAMAGE.
  */
 
+/*@ELFTC-INCLUDE-SYS-CDEFS@*/
+
 #include <assert.h>
 #include <gelf.h>
 #include <libelf.h>
@@ -32,7 +34,9 @@
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: gelf_shdr.c 3177 2015-03-30 18:19:41Z emaste $");
+ELFTC_VCSID("$Id: gelf_shdr.c 4074 2025-01-07 15:34:21Z jkoshy $");
+
+/*@ELFTC-USE-DOWNSTREAM-VCSID@*/
 
 Elf32_Shdr *
 elf32_getshdr(Elf_Scn *s)
@@ -49,8 +53,8 @@ elf64_getshdr(Elf_Scn *s)
 GElf_Shdr *
 gelf_getshdr(Elf_Scn *s, GElf_Shdr *d)
 {
-	int ec;
 	void *sh;
+	unsigned int ec;
 	Elf32_Shdr *sh32;
 	Elf64_Shdr *sh64;
 
@@ -89,8 +93,8 @@ gelf_getshdr(Elf_Scn *s, GElf_Shdr *d)
 int
 gelf_update_shdr(Elf_Scn *scn, GElf_Shdr *s)
 {
-	int ec;
 	Elf *e;
+	unsigned int ec;
 	Elf32_Shdr *sh32;
 
 

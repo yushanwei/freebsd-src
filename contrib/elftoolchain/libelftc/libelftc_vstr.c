@@ -33,7 +33,7 @@
 
 #include "_libelftc.h"
 
-ELFTC_VCSID("$Id: libelftc_vstr.c 3531 2017-06-05 05:08:43Z kaiwang27 $");
+ELFTC_VCSID("$Id: libelftc_vstr.c 3877 2020-11-03 18:28:08Z jkoshy $");
 
 /**
  * @file vector_str.c

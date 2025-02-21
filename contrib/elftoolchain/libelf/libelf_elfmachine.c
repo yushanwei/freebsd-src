@@ -24,12 +24,16 @@
  * SUCH DAMAGE.
  */
 
+/*@ELFTC-INCLUDE-SYS-CDEFS@*/
+
 #include <assert.h>
 #include <libelf.h>
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id$");
+ELFTC_VCSID("$Id: libelf_elfmachine.c 3977 2022-05-01 06:45:34Z jkoshy $");
+
+/*@ELFTC-USE-DOWNSTREAM-VCSID@*/
 
 /*
  * A convenience helper that returns the ELF machine architecture for

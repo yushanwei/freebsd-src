@@ -24,6 +24,7 @@
  * SUCH DAMAGE.
  */
 
+/*@ELFTC-INCLUDE-SYS-CDEFS@*/
 #include <sys/param.h>
 #include <sys/stat.h>
 
@@ -41,7 +42,9 @@
 #include <sys/mman.h>
 #endif
 
-ELFTC_VCSID("$Id: elf_update.c 3763 2019-06-28 21:43:27Z emaste $");
+ELFTC_VCSID("$Id: elf_update.c 4074 2025-01-07 15:34:21Z jkoshy $");
+
+/*@ELFTC-USE-DOWNSTREAM-VCSID@*/
 
 /*
  * Layout strategy:
@@ -111,8 +114,9 @@ static int
 _libelf_compute_section_extents(Elf *e, Elf_Scn *s, off_t rc)
 {
 	Elf_Data *d;
+	int  elftype;
 	size_t fsz, msz;
-	int ec, elftype;
+	unsigned int ec;
 	uint32_t sh_type;
 	uint64_t d_align;
 	Elf32_Shdr *shdr32;
@@ -448,9 +452,9 @@ _libelf_insert_extent(struct _Elf_Extent_List *extents, int type,
 static off_t
 _libelf_resync_sections(Elf *e, off_t rc, struct _Elf_Extent_List *extents)
 {
-	int ec;
 	Elf_Scn *s;
 	size_t sh_type;
+	unsigned int ec;
 
 	ec = e->e_class;
 
@@ -458,7 +462,7 @@ _libelf_resync_sections(Elf *e, off_t rc, struct _Elf_Extent_List *extents)
 	 * Make a pass through sections, computing the extent of each
 	 * section.
 	 */
-	RB_FOREACH(s, scntree, &e->e_u.e_elf.e_scn) {
+	STAILQ_FOREACH(s, &e->e_u.e_elf.e_scn, s_next) {
 		if (ec == ELFCLASS32)
 			sh_type = s->s_shdr.s_shdr32.sh_type;
 		else
@@ -509,7 +513,7 @@ _libelf_resync_sections(Elf *e, off_t rc, struct _Elf_Extent_List *extents)
 static off_t
 _libelf_resync_elf(Elf *e, struct _Elf_Extent_List *extents)
 {
-	int ec, eh_class;
+	unsigned int ec, eh_class;
 	unsigned int eh_byteorder, eh_version;
 	size_t align, fsz;
 	size_t phnum, shnum;
@@ -590,7 +594,7 @@ _libelf_resync_elf(Elf *e, struct _Elf_Extent_List *extents)
 			(size_t) 1));					\
 		(E)->e_shentsize = (uint16_t) _libelf_fsize(ELF_T_SHDR,	\
 		    (EC), _version, (size_t) 1);			\
-	} while (0)
+	} while (/* CONSTCOND */ 0)
 
 	if (ec == ELFCLASS32)
 		INITIALIZE_EHDR(eh32, ec, eh_version);
@@ -718,10 +722,11 @@ _libelf_resync_elf(Elf *e, struct _Elf_Extent_List *extents)
 static off_t
 _libelf_write_scn(Elf *e, unsigned char *nf, struct _Elf_Extent *ex)
 {
+	int em;
 	off_t rc;
-	int ec, em;
 	Elf_Scn *s;
 	int elftype;
+	unsigned int ec;
 	Elf_Data *d, dst;
 	uint32_t sh_type;
 	struct _Libelf_Data *ld;
@@ -754,9 +759,6 @@ _libelf_write_scn(Elf *e, unsigned char *nf, struct _Elf_Extent *ex)
 	assert(sh_off % _libelf_falign(elftype, ec) == 0);
 
 	em = _libelf_elfmachine(e);
-#if 0
-	assert(em >= EM_NONE && em < EM__LAST__);
-#endif
 
 	/*
 	 * If the section has a `rawdata' descriptor, and the section
@@ -847,8 +849,9 @@ _libelf_write_scn(Elf *e, unsigned char *nf, struct _Elf_Extent *ex)
 static off_t
 _libelf_write_ehdr(Elf *e, unsigned char *nf, struct _Elf_Extent *ex)
 {
-	int ec, em;
+	int em;
 	void *ehdr;
+	unsigned int ec;
 	size_t fsz, msz;
 	Elf_Data dst, src;
 
@@ -891,8 +894,9 @@ _libelf_write_ehdr(Elf *e, unsigned char *nf, struct _Elf_Extent *ex)
 static off_t
 _libelf_write_phdr(Elf *e, unsigned char *nf, struct _Elf_Extent *ex)
 {
-	int ec, em;
+	int em;
 	void *ehdr;
+	unsigned int ec;
 	Elf32_Ehdr *eh32;
 	Elf64_Ehdr *eh64;
 	Elf_Data dst, src;
@@ -953,10 +957,11 @@ _libelf_write_phdr(Elf *e, unsigned char *nf, struct _Elf_Extent *ex)
 static off_t
 _libelf_write_shdr(Elf *e, unsigned char *nf, struct _Elf_Extent *ex)
 {
-	int ec, em;
+	int em;
 	void *ehdr;
 	Elf_Scn *scn;
 	uint64_t shoff;
+	unsigned int ec;
 	Elf32_Ehdr *eh32;
 	Elf64_Ehdr *eh64;
 	size_t fsz, msz, nscn;
@@ -997,7 +1002,7 @@ _libelf_write_shdr(Elf *e, unsigned char *nf, struct _Elf_Extent *ex)
 
 	fsz = _libelf_fsize(ELF_T_SHDR, ec, e->e_version, (size_t) 1);
 
-	RB_FOREACH(scn, scntree, &e->e_u.e_elf.e_scn) {
+	STAILQ_FOREACH(scn, &e->e_u.e_elf.e_scn, s_next) {
 		if (ec == ELFCLASS32)
 			src.d_buf = &scn->s_shdr.s_shdr32;
 		else
@@ -1161,7 +1166,7 @@ _libelf_write_elf(Elf *e, off_t newsize, struct _Elf_Extent_List *extents)
 
 	e->e_flags &= ~ELF_F_DIRTY;
 
-	RB_FOREACH_SAFE(scn, scntree, &e->e_u.e_elf.e_scn, tscn)
+	STAILQ_FOREACH_SAFE(scn, &e->e_u.e_elf.e_scn, s_next, tscn)
 		_libelf_release_scn(scn);
 
 	if (e->e_class == ELFCLASS32) {
@@ -1199,8 +1204,8 @@ _libelf_write_elf(Elf *e, off_t newsize, struct _Elf_Extent_List *extents)
 off_t
 elf_update(Elf *e, Elf_Cmd c)
 {
-	int ec;
 	off_t rc;
+	unsigned int ec;
 	struct _Elf_Extent_List extents;
 
 	rc = (off_t) -1;
@@ -1242,6 +1247,5 @@ elf_update(Elf *e, Elf_Cmd c)
 
 done:
 	_libelf_release_extents(&extents);
-	e->e_flags &= ~LIBELF_F_SHDRS_LOADED;
 	return (rc);
 }

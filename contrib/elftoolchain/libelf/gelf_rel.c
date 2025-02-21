@@ -24,6 +24,8 @@
  * SUCH DAMAGE.
  */
 
+/*@ELFTC-INCLUDE-SYS-CDEFS@*/
+
 #include <assert.h>
 #include <gelf.h>
 #include <limits.h>
@@ -31,15 +33,17 @@
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: gelf_rel.c 3739 2019-05-06 05:18:15Z jkoshy $");
+ELFTC_VCSID("$Id: gelf_rel.c 4074 2025-01-07 15:34:21Z jkoshy $");
+
+/*@ELFTC-USE-DOWNSTREAM-VCSID@*/
 
 GElf_Rel *
 gelf_getrel(Elf_Data *ed, int ndx, GElf_Rel *dst)
 {
-	int ec;
 	Elf *e;
 	size_t msz;
 	Elf_Scn *scn;
+	unsigned int ec;
 	uint32_t sh_type;
 	Elf32_Rel *rel32;
 	Elf64_Rel *rel64;
@@ -90,9 +94,6 @@ gelf_getrel(Elf_Data *ed, int ndx, GElf_Rel *dst)
 		rel64 = (Elf64_Rel *) d->d_data.d_buf + ndx;
 
 		*dst = *rel64;
-
-		if (_libelf_is_mips64el(e))
-			dst->r_info = _libelf_mips64el_r_info_tom(rel64->r_info);
 	}
 
 	return (dst);
@@ -101,10 +102,10 @@ gelf_getrel(Elf_Data *ed, int ndx, GElf_Rel *dst)
 int
 gelf_update_rel(Elf_Data *ed, int ndx, GElf_Rel *dr)
 {
-	int ec;
 	Elf *e;
 	size_t msz;
 	Elf_Scn *scn;
+	unsigned int ec;
 	uint32_t sh_type;
 	Elf32_Rel *rel32;
 	Elf64_Rel *rel64;
@@ -159,9 +160,6 @@ gelf_update_rel(Elf_Data *ed, int ndx, GElf_Rel *dr)
 		rel64 = (Elf64_Rel *) d->d_data.d_buf + ndx;
 
 		*rel64 = *dr;
-
-		if (_libelf_is_mips64el(e))
-			rel64->r_info = _libelf_mips64el_r_info_tof(dr->r_info);
 	}
 
 	return (1);
