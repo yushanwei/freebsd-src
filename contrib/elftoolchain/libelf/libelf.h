@@ -30,10 +30,14 @@
 #define	_LIBELF_H_
 
 #include <sys/types.h>
+#if defined(__FreeBSD__)
+	#include <sys/elf32.h>
+	#include <sys/elf64.h>
+#else /* __FreeBSD__ */
+	#include <stdint.h>
 
-#include <stdint.h>
-
-#include "elfdefinitions.h"
+	#include "elfdefinitions.h"
+#endif /* __FreeBSD__ */
 
 /* Library private data structures */
 typedef struct _Elf Elf;
