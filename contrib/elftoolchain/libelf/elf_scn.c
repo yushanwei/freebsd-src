@@ -24,6 +24,7 @@
  * SUCH DAMAGE.
  */
 
+/*@ELFTC-INCLUDE-SYS-CDEFS@*/
 #include <sys/queue.h>
 
 #include <assert.h>
@@ -36,20 +37,9 @@
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: elf_scn.c 3712 2019-03-16 22:23:34Z jkoshy $");
+ELFTC_VCSID("$Id: elf_scn.c 4074 2025-01-07 15:34:21Z jkoshy $");
 
-static int
-elfscn_cmp(struct _Elf_Scn *s1, struct _Elf_Scn *s2)
-{
-
-	if (s1->s_ndx < s2->s_ndx)
-		return (-1);
-	if (s1->s_ndx > s2->s_ndx)
-		return (1);
-	return (0);
-}
-
-RB_GENERATE(scntree, _Elf_Scn, s_tree, elfscn_cmp);
+/*@ELFTC-USE-DOWNSTREAM-VCSID@*/
 
 /*
  * Load an ELF section table and create a list of Elf_Scn structures.
@@ -58,10 +48,11 @@ int
 _libelf_load_section_headers(Elf *e, void *ehdr)
 {
 	Elf_Scn *scn;
+	int swapbytes;
 	uint64_t shoff;
+	unsigned int ec;
 	Elf32_Ehdr *eh32;
 	Elf64_Ehdr *eh64;
-	int ec, swapbytes;
 	unsigned char *src;
 	size_t fsz, i, shnum;
 	_libelf_translator_function *xlator;
@@ -79,7 +70,7 @@ _libelf_load_section_headers(Elf *e, void *ehdr)
 			LIBELF_SET_ERROR(HEADER, 0);		\
 			return (0);				\
 		}						\
-	} while (0)
+	} while (/* CONSTCOND */ 0)
 
 	ec = e->e_class;
 	fsz = _libelf_fsize(ELF_T_SHDR, ec, e->e_version, (size_t) 1);
@@ -109,9 +100,9 @@ _libelf_load_section_headers(Elf *e, void *ehdr)
 	 */
 
 	i = 0;
-	if (!RB_EMPTY(&e->e_u.e_elf.e_scn)) {
-		assert(RB_MIN(scntree, &e->e_u.e_elf.e_scn) ==
-		    RB_MAX(scntree, &e->e_u.e_elf.e_scn));
+	if (!STAILQ_EMPTY(&e->e_u.e_elf.e_scn)) {
+		assert(STAILQ_FIRST(&e->e_u.e_elf.e_scn) ==
+		    STAILQ_LAST(&e->e_u.e_elf.e_scn, _Elf_Scn, s_next));
 
 		i = 1;
 		src += fsz;
@@ -144,9 +135,9 @@ _libelf_load_section_headers(Elf *e, void *ehdr)
 Elf_Scn *
 elf_getscn(Elf *e, size_t index)
 {
-	int ec;
 	void *ehdr;
 	Elf_Scn *s;
+	unsigned int ec;
 
 	if (e == NULL || e->e_kind != ELF_K_ELF ||
 	    ((ec = e->e_class) != ELFCLASS32 && ec != ELFCLASS64)) {
@@ -162,15 +153,9 @@ elf_getscn(Elf *e, size_t index)
 	    _libelf_load_section_headers(e, ehdr) == 0)
 		return (NULL);
 
-	for (s = RB_ROOT(&e->e_u.e_elf.e_scn); s != NULL;) {
+	STAILQ_FOREACH(s, &e->e_u.e_elf.e_scn, s_next)
 		if (s->s_ndx == index)
 			return (s);
-
-		if (s->s_ndx < index)
-			s = RB_RIGHT(s, s_tree);
-		else
-			s = RB_LEFT(s, s_tree);
-	}
 
 	LIBELF_SET_ERROR(ARGUMENT, 0);
 	return (NULL);
@@ -189,9 +174,9 @@ elf_ndxscn(Elf_Scn *s)
 Elf_Scn *
 elf_newscn(Elf *e)
 {
-	int ec;
 	void *ehdr;
 	Elf_Scn *scn;
+	unsigned int ec;
 
 	if (e == NULL || e->e_kind != ELF_K_ELF) {
 		LIBELF_SET_ERROR(ARGUMENT, 0);
@@ -221,7 +206,7 @@ elf_newscn(Elf *e)
 	    _libelf_load_section_headers(e, ehdr) == 0)
 		return (NULL);
 
-	if (RB_EMPTY(&e->e_u.e_elf.e_scn)) {
+	if (STAILQ_EMPTY(&e->e_u.e_elf.e_scn)) {
 		assert(e->e_u.e_elf.e_nscn == 0);
 		if ((scn = _libelf_allocate_scn(e, (size_t) SHN_UNDEF)) ==
 		    NULL)
@@ -251,5 +236,5 @@ elf_nextscn(Elf *e, Elf_Scn *s)
 	}
 
 	return (s == NULL ? elf_getscn(e, (size_t) 1) :
-	    RB_NEXT(scntree, &e->e_u.e_elf.e_scn, s));
+	    STAILQ_NEXT(s, s_next));
 }

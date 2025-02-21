@@ -24,6 +24,8 @@
  * SUCH DAMAGE.
  */
 
+/*@ELFTC-INCLUDE-SYS-CDEFS@*/
+
 #include <assert.h>
 #include <libelf.h>
 #include <stdlib.h>
@@ -34,7 +36,9 @@
 #include <sys/mman.h>
 #endif
 
-ELFTC_VCSID("$Id: elf_end.c 3738 2019-05-05 21:49:06Z jkoshy $");
+ELFTC_VCSID("$Id: elf_end.c 3977 2022-05-01 06:45:34Z jkoshy $");
+
+/*@ELFTC-USE-DOWNSTREAM-VCSID@*/
 
 int
 elf_end(Elf *e)
@@ -66,7 +70,8 @@ elf_end(Elf *e)
 			/*
 			 * Reclaim all section descriptors.
 			 */
-			RB_FOREACH_SAFE(scn, scntree, &e->e_u.e_elf.e_scn, tscn)
+			STAILQ_FOREACH_SAFE(scn, &e->e_u.e_elf.e_scn, s_next,
+			    tscn)
  				scn = _libelf_release_scn(scn);
 			break;
 		case ELF_K_NUM:

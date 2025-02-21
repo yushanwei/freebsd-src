@@ -24,12 +24,16 @@
  * SUCH DAMAGE.
  */
 
+/*@ELFTC-INCLUDE-SYS-CDEFS@*/
+
 #include <ar.h>
 #include <libelf.h>
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: elf_rand.c 3716 2019-03-18 22:01:01Z jkoshy $");
+ELFTC_VCSID("$Id: elf_rand.c 3977 2022-05-01 06:45:34Z jkoshy $");
+
+/*@ELFTC-USE-DOWNSTREAM-VCSID@*/
 
 off_t
 elf_rand(Elf *ar, off_t offset)

@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * $FreeBSD: users/kaiwang27/elftc/libelftc.h 392 2009-05-31 19:17:46Z kaiwang27 $
- * $Id: libelftc.h 3744 2019-06-28 00:41:47Z emaste $
+ * $Id: libelftc.h 4178 2025-02-11 20:57:57Z jkoshy $
  */
 
 #ifndef	_LIBELFTC_H_
@@ -42,13 +42,13 @@ typedef struct _Elftc_String_Table Elftc_String_Table;
 
 /* Target types. */
 typedef enum {
-	ETF_NONE,
-	ETF_ELF,
-	ETF_BINARY,
-	ETF_SREC,
-	ETF_IHEX,
-	ETF_PE,
-	ETF_EFI,
+	ETF_NONE,	/* Unknown format. */
+	ETF_ELF,	/* Extensible Linking Format. */
+	ETF_BINARY,	/* Raw binary data. */
+	ETF_SREC,	/* Binary data, encoded as S-records. */
+	ETF_IHEX,	/* Intel™ Hex format. */
+	ETF_PE,		/* Microsoft™ Portable Executable format. */
+	ETF_EFI,	/* Extensible Firmware Interface format. */
 } Elftc_Bfd_Target_Flavor;
 
 /*
@@ -76,6 +76,10 @@ unsigned int	elftc_bfd_target_osabi(Elftc_Bfd_Target *_tgt);
 int		elftc_copyfile(int _srcfd,  int _dstfd);
 int		elftc_demangle(const char *_mangledname, char *_buffer,
     size_t _bufsize, unsigned int _flags);
+const char	*elftc_get_machine_description(unsigned int _e_machine);
+const char	*elftc_get_machine_name(unsigned int _e_machine);
+const char	*elftc_get_relocation_type_name(unsigned int _e_machine,
+    unsigned int _r_value);
 const char	*elftc_reloc_type_str(unsigned int mach, unsigned int type);
 int		elftc_set_timestamps(const char *_filename, struct stat *_sb);
 Elftc_String_Table	*elftc_string_table_create(size_t _sizehint);

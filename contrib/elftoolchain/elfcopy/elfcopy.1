@@ -21,9 +21,9 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: elfcopy.1 3642 2018-10-14 14:24:28Z jkoshy $
+.\" $Id: elfcopy.1 3972 2022-04-23 12:55:28Z jkoshy $
 .\"
-.Dd August 30, 2017
+.Dd April 23, 2022
 .Dt ELFCOPY 1
 .Os
 .Sh NAME
@@ -33,6 +33,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl I Ar objformat | Fl s Ar objformat | Fl -input-target= Ns Ar objformat
+.Op Fl G Ar filename | Fl --keep-global-symbols= Ns Ar filename
 .Op Fl K Ar symbolname | Fl -keep-symbol= Ns Ar symbolname
 .Op Fl L Ar symbolname | Fl -localize-symbol= Ns Ar symbolname
 .Op Fl N Ar symbolname | Fl -strip-symbol= Ns Ar symbolname
@@ -69,6 +70,7 @@
 .Op Fl -gap-fill Ns = Ns Ar val
 .Op Fl -globalize-symbol Ns = Ns ar symbolname
 .Op Fl -globalize-symbols Ns = Ns Ar filename
+.Op Fl -keep-global-symbol Ns = Ns Ar symbolname
 .Op Fl -localize-hidden
 .Op Fl -localize-symbols Ns = Ns Ar filename
 .Op Fl -no-adjust-warnings | Fl -no-change-warnings
@@ -111,6 +113,18 @@ Specify that the input file named by the argument
 .Ar infile
 is in the object format specified by the argument
 .Ar objformat .
+.It Fl G Ar filename | Fl --keep-global-symbols= Ns Ar filename
+Make the symbols specified in
+.Ar filename
+global.
+File
+.Ar filename
+contains a newline-separated list of symbols, with the
+.Sq Li #
+character starting a comment that extends to the end of the line.
+If this option is specified, any other symbols not specified
+as global will be made local to the output file.
+This option may be specified multiple times.
 .It Fl K Ar symbolname | Fl -keep-symbol= Ns Ar symbolname
 Copy the symbol named by argument
 .Ar symbolname
@@ -251,6 +265,13 @@ global, so that it is visible outside of the file in which it is defined.
 Make each symbol listed in the file specified by
 .Ar filename
 global.
+.It Fl -keep-global-symbol Ns = Ns Ar symbolname
+Make the symbol named by argument
+.Ar symbolname
+global.
+If this option is specified, any other symbols not
+specified as global will be made local to the output file.
+This option may be specified multiple times.
 .It Fl -localize-hidden
 Make all hidden symbols local to the output file.
 This includes symbols with internal visiblity.

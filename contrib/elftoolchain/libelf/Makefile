@@ -1,4 +1,4 @@
-# $Id: Makefile 3632 2018-10-10 21:12:43Z jkoshy $
+# $Id: Makefile 3925 2021-03-07 12:16:49Z jkoshy $
 
 TOP=	..
 
@@ -15,6 +15,7 @@ SRCS=	elf.c							\
 	elf_getarsym.c						\
 	elf_getbase.c						\
 	elf_getident.c						\
+	elf_getversion.c					\
 	elf_hash.c						\
 	elf_kind.c						\
 	elf_memory.c						\
@@ -35,7 +36,6 @@ SRCS=	elf.c							\
 	gelf_ehdr.c						\
 	gelf_getclass.c						\
 	gelf_fsize.c						\
-	gelf_mips64el.c						\
 	gelf_move.c						\
 	gelf_phdr.c						\
 	gelf_rel.c						\
@@ -90,6 +90,7 @@ MAN=	elf.3							\
 	elf_getshnum.3						\
 	elf_getshdrstrndx.3					\
 	elf_getshstrndx.3					\
+	elf_getversion.3					\
 	elf_hash.3						\
 	elf_kind.3						\
 	elf_memory.3						\
