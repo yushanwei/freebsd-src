@@ -21,9 +21,9 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: elftc_bfd_find_target.3 3752 2019-06-28 01:12:53Z emaste $
+.\" $Id: elftc_bfd_find_target.3 4183 2025-02-12 17:03:53Z jkoshy $
 .\"
-.Dd February 12, 2020
+.Dd February 12, 2025
 .Dt ELFTC_BFD_FIND_TARGET 3
 .Os
 .Sh NAME
@@ -31,7 +31,8 @@
 .Nm elftc_bfd_target_byteorder ,
 .Nm elftc_bfd_target_class ,
 .Nm elftc_bfd_target_flavor ,
-.Nm elftc_bfd_target_machine
+.Nm elftc_bfd_target_machine ,
+.Nm elftc_bfd_target_osabi
 .Nd binary object descriptor handling
 .Sh LIBRARY
 .Lb libelftc
@@ -55,7 +56,7 @@ Function
 .Fn elftc_bfd_find_target
 locates a binary object descriptor corresponding to the descriptor
 name in argument
-.Ar "target_name" .
+.Fa "target_name" .
 Binary object descriptors encapsulate properties of an object format
 such as its file representation, ELF class, and byte endianness.
 .Pp
@@ -64,6 +65,7 @@ Known descriptor names and their properties include:
 .It Em Name Ta Em "Object Format" Ta Em "Byte Order" Ta Em "Bit Width"
 .It Li binary Ta Binary Ta - Ta -
 .It Li efi-app-ia32 Ta PE Ta LSB Ta 32
+.It Li efi-app-loongarch64 Ta PE LSB Ta 64
 .It Li efi-app-x86_64 Ta PE Ta LSB Ta 64
 .It Li elf32-avr Ta ELF Ta LSB Ta 32
 .It Li elf32-big Ta ELF Ta MSB Ta 32
@@ -75,6 +77,7 @@ Known descriptor names and their properties include:
 .It Li elf32-little Ta ELF Ta LSB Ta 32
 .It Li elf32-littlearm Ta ELF Ta LSB Ta 32
 .It Li elf32-littlemips Ta ELF Ta LSB Ta 32
+.It Li elf32-loongarch Ta ELF Ta LSB Ta 32
 .It Li elf32-powerpc Ta ELF Ta MSB Ta 32
 .It Li elf32-powerpc-freebsd Ta ELF Ta MSB Ta 32
 .It Li elf32-powerpcle Ta ELF Ta LSB Ta 32
@@ -99,6 +102,7 @@ Known descriptor names and their properties include:
 .It Li elf64-little Ta ELF Ta LSB Ta 64
 .It Li elf64-littleaarch64 Ta ELF Ta LSB Ta 64
 .It Li elf64-littlemips Ta ELF Ta LSB Ta 64
+.It Li elf64-loongarch Ta ELF Ta LSB Ta 64
 .It Li elf64-powerpc Ta ELF Ta MSB Ta 64
 .It Li elf64-powerpc-freebsd Ta ELF Ta MSB Ta 64
 .It Li elf64-powerpcle Ta ELF Ta LSB Ta 64
@@ -124,29 +128,35 @@ Known descriptor names and their properties include:
 Function
 .Fn elftc_bfd_target_byteorder
 returns the ELF byte order associated with target descriptor
-.Ar target .
+.Fa target .
 .Pp
 Function
 .Fn elftc_bfd_target_class
 returns the ELF class associated with target descriptor
-.Ar target .
+.Fa target .
 .Pp
 Function
 .Fn elftc_bfd_target_flavor
 returns the object format associated with target descriptor
-.Ar target .
+.Fa target .
 The known object formats are:
 .Bl -tag -offset "XXXX" -width ".Dv ETF_BINARY" -compact
+.It Dv ETF_BINARY
+A raw binary object.
+.It Dv ETF_EFI
+An Extensible Firmware Interface object.
 .It Dv ETF_ELF
 An ELF object.
-.It Dv ETF_BINARY
-Raw binary.
 .It Dv ETF_IHEX
 An object encoded in
 .Tn Intel
 hex format.
 .It Dv ETF_NONE
-An unknown object format.
+An object encoded in an unknown format.
+.It Dv ETF_PE
+A
+.Tn Microsoft
+Portable Executable object.
 .It Dv ETF_SREC
 An object encoded as S-records.
 .El
@@ -154,7 +164,9 @@ An object encoded as S-records.
 Function
 .Fn elftc_bfd_find_target
 returns a valid pointer to an opaque binary target descriptor if
-successful, or NULL in case of an error.
+successful, or
+.Dv NULL
+in case of an error.
 .Pp
 Function
 .Fn elftc_bfd_target_byteorder

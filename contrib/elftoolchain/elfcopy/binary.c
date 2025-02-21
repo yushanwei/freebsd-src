@@ -36,7 +36,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: binary.c 3757 2019-06-28 01:15:28Z emaste $");
+ELFTC_VCSID("$Id: binary.c 3832 2020-03-02 00:22:47Z emaste $");
 
 /*
  * Convert ELF object to `binary'. Sections with SHF_ALLOC flag set
@@ -49,24 +49,22 @@ create_binary(int ifd, int ofd)
 	Elf *e;
 	Elf_Scn *scn;
 	Elf_Data *d;
-	Elf64_Addr baseaddr;
 	GElf_Shdr sh;
-	off_t baseoff, off;
+	off_t base, off;
 	int elferr;
 
 	if ((e = elf_begin(ifd, ELF_C_READ, NULL)) == NULL)
 		errx(EXIT_FAILURE, "elf_begin() failed: %s",
 		    elf_errmsg(-1));
 
-	baseaddr = 0;
-	baseoff = 0;
-	if (lseek(ofd, baseoff, SEEK_SET) < 0)
+	base = 0;
+	if (lseek(ofd, base, SEEK_SET) < 0)
 		err(EXIT_FAILURE, "lseek failed");
 
 	/*
 	 * Find base offset in the first iteration.
 	 */
-	baseoff = -1;
+	base = -1;
 	scn = NULL;
 	while ((scn = elf_nextscn(e, scn)) != NULL) {
 		if (gelf_getshdr(scn, &sh) == NULL) {
@@ -78,16 +76,14 @@ create_binary(int ifd, int ofd)
 		    sh.sh_type == SHT_NOBITS ||
 		    sh.sh_size == 0)
 			continue;
-		if (baseoff == -1 || (off_t) sh.sh_offset < baseoff) {
-			baseoff = sh.sh_offset;
-			baseaddr = sh.sh_addr;
-		}
+		if (base == -1 || (off_t) sh.sh_offset < base)
+			base = sh.sh_offset;
 	}
 	elferr = elf_errno();
 	if (elferr != 0)
 		warnx("elf_nextscn failed: %s", elf_errmsg(elferr));
 
-	if (baseoff == -1)
+	if (base == -1)
 		return;
 
 	/*
@@ -114,8 +110,8 @@ create_binary(int ifd, int ofd)
 		if (d->d_buf == NULL || d->d_size == 0)
 			continue;
 
-		/* lseek to section offset relative to `baseaddr'. */
-		off = sh.sh_addr - baseaddr;
+		/* lseek to section offset relative to `base'. */
+		off = sh.sh_offset - base;
 		if (lseek(ofd, off, SEEK_SET) < 0)
 			err(EXIT_FAILURE, "lseek failed");
 

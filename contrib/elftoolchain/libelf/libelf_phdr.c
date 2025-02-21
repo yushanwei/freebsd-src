@@ -24,6 +24,8 @@
  * SUCH DAMAGE.
  */
 
+/*@ELFTC-INCLUDE-SYS-CDEFS@*/
+
 #include <assert.h>
 #include <gelf.h>
 #include <libelf.h>
@@ -31,10 +33,12 @@
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: libelf_phdr.c 3732 2019-04-22 11:08:38Z jkoshy $");
+ELFTC_VCSID("$Id: libelf_phdr.c 4074 2025-01-07 15:34:21Z jkoshy $");
+
+/*@ELFTC-USE-DOWNSTREAM-VCSID@*/
 
 void *
-_libelf_getphdr(Elf *e, int ec)
+_libelf_getphdr(Elf *e, unsigned int ec)
 {
 	size_t phnum;
 	size_t fsz, msz;
@@ -110,7 +114,7 @@ _libelf_getphdr(Elf *e, int ec)
 }
 
 void *
-_libelf_newphdr(Elf *e, int ec, size_t count)
+_libelf_newphdr(Elf *e, unsigned int ec, size_t count)
 {
 	void *ehdr, *newphdr, *oldphdr;
 	size_t msz;

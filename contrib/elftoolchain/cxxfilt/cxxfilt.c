@@ -25,8 +25,6 @@
  */
 
 #include <sys/param.h>
-
-#include <capsicum_helpers.h>
 #include <ctype.h>
 #include <err.h>
 #include <getopt.h>
@@ -34,10 +32,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <sysexits.h>
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: cxxfilt.c 3499 2016-11-25 16:06:29Z emaste $");
+ELFTC_VCSID("$Id: cxxfilt.c 3950 2021-09-08 20:04:20Z jkoshy $");
 
 #define	STRBUFSZ	8192
 
@@ -86,11 +85,11 @@ Usage: %s [options] [encoded-names...]\n\
   --version                    Print a version identifier and exit.\n"
 
 static void
-usage(void)
+usage(int exit_code)
 {
 
 	(void) fprintf(stderr, USAGE_MESSAGE, ELFTC_GETPROGNAME());
-	exit(1);
+	exit(exit_code);
 }
 
 static void
@@ -156,21 +155,18 @@ main(int argc, char **argv)
 			break;
 		case 'V':
 			version();
-			/* NOT REACHED */
+			break;
 		case OPTION_HELP:
+			usage(EX_OK);
+			break;
 		default:
-			usage();
-			/* NOT REACHED */
+			usage(EX_USAGE);
+			break;
 		}
 	}
 
 	argv += optind;
 	argc -= optind;
-
-	if (caph_limit_stdio() < 0)
-		err(EXIT_FAILURE, "failed to limit stdio rights");
-	if (caph_enter() < 0)
-		err(EXIT_FAILURE, "failed to enter capability mode");
 
 	if (*argv != NULL) {
 		for (n = 0; n < argc; n++) {

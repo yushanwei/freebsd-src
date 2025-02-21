@@ -6,4 +6,8 @@
 # being generated.
 LFLAGS += --nounput
 .endif
+.if ${OS_DISTRIBUTION_VERSION} >= 22
+# 'NOPIC=yes' builds on Ubuntu need -lacl to be explicitly specified.
+LDADD+= -lacl
+.endif
 .endif

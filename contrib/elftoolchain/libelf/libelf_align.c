@@ -30,7 +30,9 @@
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: libelf_align.c 3174 2015-03-27 17:13:41Z emaste $");
+ELFTC_VCSID("$Id: libelf_align.c 4074 2025-01-07 15:34:21Z jkoshy $");
+
+/*@ELFTC-USE-DOWNSTREAM-VCSID@*/
 
 struct align {
 	unsigned int a32;
@@ -50,6 +52,10 @@ struct align {
 		.a32 = __alignof__(int32_t),			\
 		.a64 = __alignof__(int64_t)			\
 	    }
+#elif defined(__lint__)
+#define MALIGN(N)	{ .a32 = 0, .a64 = 0 }
+#define MALIGN64(N)	{ .a32 = 0, .a64 = 0 }
+#define MALIGN_WORD(N)	{ .a32 = 0, .a64 = 0 }
 #else
 #error	Need the __alignof__ builtin.
 #endif
@@ -86,7 +92,7 @@ static struct align malign[ELF_T_NUM] = {
 };
 
 unsigned int
-_libelf_malign(Elf_Type t, int elfclass)
+_libelf_malign(Elf_Type t, unsigned int elfclass)
 {
 	if (t >= ELF_T_NUM || (int) t < 0)
 		return (0);
@@ -107,7 +113,7 @@ static struct align falign[ELF_T_NUM] = {
 	[ELF_T_LWORD]	= FALIGN(8,8),
 	[ELF_T_MOVE]	= FALIGN(8,8),
 	[ELF_T_MOVEP] 	= UNSUPPORTED(),
-	[ELF_T_NOTE]	= FALIGN(1,1),
+	[ELF_T_NOTE]	= FALIGN(4,4),
 	[ELF_T_OFF]	= FALIGN(4,8),
 	[ELF_T_PHDR]	= FALIGN(4,8),
 	[ELF_T_REL]	= FALIGN(4,8),
@@ -125,7 +131,7 @@ static struct align falign[ELF_T_NUM] = {
 };
 
 unsigned int
-_libelf_falign(Elf_Type t, int elfclass)
+_libelf_falign(Elf_Type t, unsigned int elfclass)
 {
 	if (t >= ELF_T_NUM || (int) t < 0)
 		return (0);

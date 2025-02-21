@@ -38,7 +38,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: archive.c 3490 2016-08-31 00:12:22Z emaste $");
+ELFTC_VCSID("$Id: archive.c 3919 2021-02-19 21:50:21Z jkoshy $");
 
 #define _ARMAG_LEN 8		/* length of ar magic string */
 #define _ARHDR_LEN 60		/* length of ar header */
@@ -193,7 +193,7 @@ add_to_ar_sym_table(struct elfcopy *ecp, const char *name)
 		if (ecp->s_sn == NULL)
 			err(EXIT_FAILURE, "realloc failed");
 	}
-	strncpy(&ecp->s_sn[ecp->s_sn_sz], name, strlen(name));
+	memcpy(&ecp->s_sn[ecp->s_sn_sz], name, strlen(name));
 	ecp->s_sn_sz += strlen(name);
 	ecp->s_sn[ecp->s_sn_sz++] = '\0';
 }

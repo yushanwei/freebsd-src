@@ -27,7 +27,7 @@
 
 #include "_libdwarf.h"
 
-ELFTC_VCSID("$Id: libdwarf_die.c 3039 2014-05-18 15:10:56Z kaiwang27 $");
+ELFTC_VCSID("$Id: libdwarf_die.c 4008 2023-10-12 18:17:06Z kaiwang27 $");
 
 int
 _dwarf_die_alloc(Dwarf_Debug dbg, Dwarf_Die *ret_die, Dwarf_Error *error)
@@ -70,7 +70,8 @@ _dwarf_die_add(Dwarf_CU cu, uint64_t offset, uint64_t abnum, Dwarf_Abbrev ab,
 	die->die_cu	= cu;
 	die->die_dbg	= cu->cu_dbg;
 
-	*diep = die;
+	if (diep != NULL)
+		*diep = die;
 
 	return (DW_DLE_NONE);
 }
@@ -342,7 +343,7 @@ _dwarf_die_gen_recursive(Dwarf_P_Debug dbg, Dwarf_CU cu, Dwarf_Rel_Section drs,
 			return (ret);
 		STAILQ_FOREACH(at, &die->die_attr, at_next) {
 			ret = _dwarf_attrdef_add(dbg, ab, at->at_attrib,
-			    at->at_form, 0, NULL, error);
+			    at->at_form, 0, 0, NULL, error);
 			if (ret != DW_DLE_NONE)
 				return (ret);
 		}
