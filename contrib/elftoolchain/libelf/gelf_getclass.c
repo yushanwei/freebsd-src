@@ -24,14 +24,18 @@
  * SUCH DAMAGE.
  */
 
+/*@ELFTC-INCLUDE-SYS-CDEFS@*/
+
 #include <gelf.h>
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: gelf_getclass.c 3174 2015-03-27 17:13:41Z emaste $");
+ELFTC_VCSID("$Id: gelf_getclass.c 4074 2025-01-07 15:34:21Z jkoshy $");
+
+/*@ELFTC-USE-DOWNSTREAM-VCSID@*/
 
 int
 gelf_getclass(Elf *e)
 {
-	return (e != NULL ? e->e_class : ELFCLASSNONE);
+	return (int) (e != NULL ? e->e_class : ELFCLASSNONE);
 }

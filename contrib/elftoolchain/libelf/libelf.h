@@ -23,15 +23,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: libelf.h 3174 2015-03-27 17:13:41Z emaste $
+ * $Id: libelf.h 3984 2022-05-06 11:22:42Z jkoshy $
  */
 
 #ifndef	_LIBELF_H_
 #define	_LIBELF_H_
 
 #include <sys/types.h>
-#include <sys/elf32.h>
-#include <sys/elf64.h>
+
+#include <stdint.h>
+
+#include "elfdefinitions.h"
 
 /* Library private data structures */
 typedef struct _Elf Elf;
@@ -162,9 +164,6 @@ enum Elf_Error {
 	ELF_E_SEQUENCE,	/* API calls out of sequence */
 	ELF_E_UNIMPL,	/* Feature is unimplemented */
 	ELF_E_VERSION,	/* Unknown API version */
-	ELF_E_INVALID_SECTION_FLAGS, /* Invalid ELF section header flags */
-	ELF_E_INVALID_SECTION_TYPE, /* Invalid ELF section header type */
-	ELF_E_NOT_COMPRESSED, /* Section is not compressed */
 	ELF_E_NUM	/* Max error number */
 };
 
@@ -209,6 +208,7 @@ int		elf_getshdrnum(Elf *_elf, size_t *_dst);
 int		elf_getshnum(Elf *_elf, size_t *_dst);	/* Deprecated */
 int		elf_getshdrstrndx(Elf *_elf, size_t *_dst);
 int		elf_getshstrndx(Elf *_elf, size_t *_dst); /* Deprecated */
+unsigned int	elf_getversion(Elf *_elf);
 unsigned long	elf_hash(const char *_name);
 Elf_Kind	elf_kind(Elf *_elf);
 Elf		*elf_memory(char *_image, size_t _size);
@@ -230,7 +230,6 @@ unsigned int	elf_version(unsigned int _version);
 long		elf32_checksum(Elf *_elf);
 size_t		elf32_fsize(Elf_Type _type, size_t _count,
 			unsigned int _version);
-Elf32_Chdr	*elf32_getchdr(Elf_Scn *_scn);
 Elf32_Ehdr	*elf32_getehdr(Elf *_elf);
 Elf32_Phdr	*elf32_getphdr(Elf *_elf);
 Elf32_Shdr	*elf32_getshdr(Elf_Scn *_scn);
@@ -244,7 +243,6 @@ Elf_Data	*elf32_xlatetom(Elf_Data *_dst, const Elf_Data *_src,
 long		elf64_checksum(Elf *_elf);
 size_t		elf64_fsize(Elf_Type _type, size_t _count,
 			unsigned int _version);
-Elf64_Chdr	*elf64_getchdr(Elf_Scn *_scn);
 Elf64_Ehdr	*elf64_getehdr(Elf *_elf);
 Elf64_Phdr	*elf64_getphdr(Elf *_elf);
 Elf64_Shdr	*elf64_getshdr(Elf_Scn *_scn);
