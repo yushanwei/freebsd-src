@@ -24,12 +24,16 @@
  * SUCH DAMAGE.
  */
 
+/*@ELFTC-INCLUDE-SYS-CDEFS@*/
+
 #include <assert.h>
 #include <libelf.h>
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: libelf_xlate.c 3732 2019-04-22 11:08:38Z jkoshy $");
+ELFTC_VCSID("$Id: libelf_xlate.c 4074 2025-01-07 15:34:21Z jkoshy $");
+
+/*@ELFTC-USE-DOWNSTREAM-VCSID@*/
 
 /*
  * Translate to/from the file representation of ELF objects.
@@ -45,7 +49,7 @@ ELFTC_VCSID("$Id: libelf_xlate.c 3732 2019-04-22 11:08:38Z jkoshy $");
 
 Elf_Data *
 _libelf_xlate(Elf_Data *dst, const Elf_Data *src, unsigned int encoding,
-    int elfclass, int elfmachine, int direction)
+    unsigned int elfclass, int elfmachine, int direction)
 {
 	int byteswap;
 	size_t cnt, dsz, fsz, msz;
