@@ -24,13 +24,17 @@
  * SUCH DAMAGE.
  */
 
+/*@ELFTC-INCLUDE-SYS-CDEFS@*/
+
 #include <assert.h>
 #include <libelf.h>
 #include <string.h>
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: libelf_msize.m4 3732 2019-04-22 11:08:38Z jkoshy $");
+ELFTC_VCSID("$Id: libelf_msize.m4 4074 2025-01-07 15:34:21Z jkoshy $");
+
+/*@ELFTC-USE-DOWNSTREAM-VCSID@*/
 
 /* WARNING: GENERATED FROM __file__. */
 
@@ -96,7 +100,7 @@ MSIZES(ELF_TYPE_LIST)
  * library error code set.
  */
 size_t
-_libelf_msize(Elf_Type t, int elfclass, unsigned int version)
+_libelf_msize(Elf_Type t, unsigned int elfclass, unsigned int version)
 {
 	size_t sz;
 

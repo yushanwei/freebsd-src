@@ -34,7 +34,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: pe.c 3508 2016-12-27 06:19:39Z kaiwang27 $");
+ELFTC_VCSID("$Id: pe.c 4186 2025-02-13 15:14:53Z jkoshy $");
 
 /* Convert ELF object to Portable Executable (PE). */
 void
@@ -57,7 +57,9 @@ create_pe(struct elfcopy *ecp, int ifd, int ofd)
 	time_t timestamp;
 	int elferr;
 
-	if (ecp->otf == ETF_EFI || ecp->oem == EM_X86_64)
+	if (ecp->otf == ETF_EFI ||
+	    (ecp->oem == EM_LOONGARCH ||
+	     ecp->oem == EM_X86_64))
 		po = PE_O_PE32P;
 	else
 		po = PE_O_PE32;
@@ -82,6 +84,9 @@ create_pe(struct elfcopy *ecp, int ifd, int ofd)
 	switch (ecp->oem) {
 	case EM_386:
 		pch.ch_machine = IMAGE_FILE_MACHINE_I386;
+		break;
+	case EM_LOONGARCH:
+		pch.ch_machine = IMAGE_FILE_MACHINE_LOONGARCH64;
 		break;
 	case EM_X86_64:
 		pch.ch_machine = IMAGE_FILE_MACHINE_AMD64;
@@ -174,7 +179,21 @@ create_pe(struct elfcopy *ecp, int ifd, int ofd)
 		 * to the PE/COFF specification.
 		 */
 		memset(&psh, 0, sizeof(psh));
+
+		/*
+		 * Turn off the '-Wstringop-truncation' warning in GCC 8 and
+		 * later, since we require strncpy's non-null-terminating
+		 * behavior here.
+		 */
+#if defined(__GNUC__) && __GNUC__ >= 8
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-truncation"
+#endif
 		strncpy(psh.sh_name, name, sizeof(psh.sh_name));
+#if defined(__GNUC__) && __GNUC__ >= 8
+#pragma GCC diagnostic pop
+#endif
+
 		psh.sh_addr = sh.sh_addr;
 		psh.sh_virtsize = sh.sh_size;
 		if (sh.sh_type != SHT_NOBITS)

@@ -27,7 +27,39 @@
 
 #include "_libdwarf.h"
 
-ELFTC_VCSID("$Id: libdwarf_abbrev.c 3420 2016-02-27 02:14:05Z emaste $");
+ELFTC_VCSID("$Id: libdwarf_abbrev.c 4049 2024-07-20 07:38:17Z jkoshy $");
+
+static int
+_dwarf_abbrev_allocate(Dwarf_Debug dbg, Dwarf_Abbrev *abp,
+    Dwarf_Error *error)
+{
+	Dwarf_Abbrev ab;
+
+	if ((ab = calloc(1, sizeof(struct _Dwarf_Abbrev))) == NULL) {
+		DWARF_SET_ERROR(dbg, error, DW_DLE_MEMORY);
+		return (DW_DLE_MEMORY);
+	}
+
+	/* Initialise the list of attribute definitions. */
+	STAILQ_INIT(&ab->ab_attrdef);
+
+	*abp = ab;
+	
+	return (DW_DLE_NONE);
+}
+
+static void
+_dwarf_abbrev_release(Dwarf_Abbrev ab) {
+	Dwarf_AttrDef ad, tad;
+
+	STAILQ_FOREACH_SAFE(ad, &ab->ab_attrdef, ad_next, tad) {
+		STAILQ_REMOVE(&ab->ab_attrdef, ad, _Dwarf_AttrDef,
+		    ad_next);
+		free(ad);
+	}
+
+	free(ab);
+}
 
 int
 _dwarf_abbrev_add(Dwarf_CU cu, uint64_t entry, uint64_t tag, uint8_t children,
@@ -35,13 +67,12 @@ _dwarf_abbrev_add(Dwarf_CU cu, uint64_t entry, uint64_t tag, uint8_t children,
 {
 	Dwarf_Abbrev ab;
 	Dwarf_Debug dbg;
+	int ret;
 
 	dbg = cu != NULL ? cu->cu_dbg : NULL;
 
-	if ((ab = malloc(sizeof(struct _Dwarf_Abbrev))) == NULL) {
-		DWARF_SET_ERROR(dbg, error, DW_DLE_MEMORY);
-		return (DW_DLE_MEMORY);
-	}
+	if ((ret = _dwarf_abbrev_allocate(dbg, &ab, error)) != DW_DLE_NONE)
+		return (ret);
 
 	/* Initialise the abbrev structure. */
 	ab->ab_entry	= entry;
@@ -50,9 +81,6 @@ _dwarf_abbrev_add(Dwarf_CU cu, uint64_t entry, uint64_t tag, uint8_t children,
 	ab->ab_offset	= aboff;
 	ab->ab_length	= 0;	/* fill in later. */
 	ab->ab_atnum	= 0;	/* fill in later. */
-
-	/* Initialise the list of attribute definitions. */
-	STAILQ_INIT(&ab->ab_attrdef);
 
 	/* Add the abbrev to the hash table of the compilation unit. */
 	if (cu != NULL)
@@ -65,7 +93,8 @@ _dwarf_abbrev_add(Dwarf_CU cu, uint64_t entry, uint64_t tag, uint8_t children,
 
 int
 _dwarf_attrdef_add(Dwarf_Debug dbg, Dwarf_Abbrev ab, uint64_t attr,
-    uint64_t form, uint64_t adoff, Dwarf_AttrDef *adp, Dwarf_Error *error)
+    uint64_t form, int64_t ic, uint64_t adoff, Dwarf_AttrDef *adp,
+    Dwarf_Error *error)
 {
 	Dwarf_AttrDef ad;
 
@@ -82,6 +111,7 @@ _dwarf_attrdef_add(Dwarf_Debug dbg, Dwarf_Abbrev ab, uint64_t attr,
 	/* Initialise the attribute definition structure. */
 	ad->ad_attrib	= attr;
 	ad->ad_form	= form;
+	ad->ad_const	= ic;
 	ad->ad_offset	= adoff;
 
 	/* Add the attribute definition to the list in the abbrev. */
@@ -107,6 +137,7 @@ _dwarf_abbrev_parse(Dwarf_Debug dbg, Dwarf_CU cu, Dwarf_Unsigned *offset,
 	uint64_t aboff;
 	uint64_t adoff;
 	uint64_t tag;
+	int64_t ic;
 	uint8_t children;
 	int ret;
 
@@ -123,30 +154,47 @@ _dwarf_abbrev_parse(Dwarf_Debug dbg, Dwarf_CU cu, Dwarf_Unsigned *offset,
 		/* Last entry. */
 		ret = _dwarf_abbrev_add(cu, entry, 0, 0, aboff, abp,
 		    error);
-		if (ret == DW_DLE_NONE) {
-			(*abp)->ab_length = 1;
-			return (ret);
-		} else
-			return (ret);
+		if (ret != DW_DLE_NONE)
+			goto error;
+
+		(*abp)->ab_length = 1;
+		return (ret);
 	}
 	tag = _dwarf_read_uleb128(ds->ds_data, offset);
 	children = dbg->read(ds->ds_data, offset, 1);
 	if ((ret = _dwarf_abbrev_add(cu, entry, tag, children, aboff,
 	    abp, error)) != DW_DLE_NONE)
-		return (ret);
+		goto error;
 
 	/* Parse attribute definitions. */
 	do {
 		adoff = *offset;
 		attr = _dwarf_read_uleb128(ds->ds_data, offset);
 		form = _dwarf_read_uleb128(ds->ds_data, offset);
-		if (attr != 0)
+		ic = 0;
+		if (form == DW_FORM_implicit_const) {
+			/*
+			 * DWARF5 7.5.3: atrribute definition with the form
+			 * DW_FORM_implicit_const contains a third part, a
+			 * signed LEB128 value indicating a constant value.
+			 * No value is needed to store in the .debug_info
+			 * as a result.
+			 */
+			ic = _dwarf_read_sleb128(ds->ds_data, offset);
+		}
+		if (attr != 0) {
 			if ((ret = _dwarf_attrdef_add(dbg, *abp, attr,
-			    form, adoff, NULL, error)) != DW_DLE_NONE)
-				return (ret);
+			    form, ic, adoff, NULL, error)) != DW_DLE_NONE)
+				goto error;
+		}
 	} while (attr != 0);
 
 	(*abp)->ab_length = *offset - aboff;
+
+	return (ret);
+
+ error:
+	_dwarf_abbrev_release(*abp);
 
 	return (ret);
 }
@@ -203,18 +251,12 @@ void
 _dwarf_abbrev_cleanup(Dwarf_CU cu)
 {
 	Dwarf_Abbrev ab, tab;
-	Dwarf_AttrDef ad, tad;
 
 	assert(cu != NULL);
 
 	HASH_ITER(ab_hh, cu->cu_abbrev_hash, ab, tab) {
 		HASH_DELETE(ab_hh, cu->cu_abbrev_hash, ab);
-		STAILQ_FOREACH_SAFE(ad, &ab->ab_attrdef, ad_next, tad) {
-			STAILQ_REMOVE(&ab->ab_attrdef, ad, _Dwarf_AttrDef,
-			    ad_next);
-			free(ad);
-		}
-		free(ab);
+		_dwarf_abbrev_release(ab);
 	}
 }
 

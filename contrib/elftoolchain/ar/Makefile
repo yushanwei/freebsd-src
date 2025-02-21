@@ -1,4 +1,4 @@
-# $Id: Makefile 3608 2018-04-14 21:23:04Z jkoshy $
+# $Id: Makefile 4185 2025-02-12 23:31:37Z jkoshy $
 
 TOP=	..
 
@@ -18,9 +18,11 @@ LINKS=	${BINDIR}/ar ${BINDIR}/ranlib
 
 EXTRA_TARGETS=	ranlib
 
-CLEANFILES+= 	${EXTRA_TARGETS}
+CLEANFILES+= 	acplex.c ${EXTRA_TARGETS}
 
 MAN=	ar.1 ranlib.1 ar.5
+
+TEST_FRAMEWORK=	custom
 
 all:	${EXTRA_TARGETS}
 

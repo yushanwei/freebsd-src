@@ -24,12 +24,16 @@
  * SUCH DAMAGE.
  */
 
+/*@ELFTC-INCLUDE-SYS-CDEFS@*/
+
 #include <assert.h>
 #include <libelf.h>
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: libelf_extended.c 3712 2019-03-16 22:23:34Z jkoshy $");
+ELFTC_VCSID("$Id: libelf_extended.c 4074 2025-01-07 15:34:21Z jkoshy $");
+
+/*@ELFTC-USE-DOWNSTREAM-VCSID@*/
 
 /*
  * Retrieve section #0, allocating a new section if needed.
@@ -39,14 +43,14 @@ _libelf_getscn0(Elf *e)
 {
 	Elf_Scn *s;
 
-	if ((s = RB_MIN(scntree, &e->e_u.e_elf.e_scn)) != NULL)
+	if ((s = STAILQ_FIRST(&e->e_u.e_elf.e_scn)) != NULL)
 		return (s);
 
 	return (_libelf_allocate_scn(e, (size_t) SHN_UNDEF));
 }
 
 int
-_libelf_setshnum(Elf *e, void *eh, int ec, size_t shnum)
+_libelf_setshnum(Elf *e, void *eh, unsigned int ec, size_t shnum)
 {
 	Elf_Scn *scn;
 
@@ -76,7 +80,7 @@ _libelf_setshnum(Elf *e, void *eh, int ec, size_t shnum)
 }
 
 int
-_libelf_setshstrndx(Elf *e, void *eh, int ec, size_t shstrndx)
+_libelf_setshstrndx(Elf *e, void *eh, unsigned int ec, size_t shstrndx)
 {
 	Elf_Scn *scn;
 
@@ -105,7 +109,7 @@ _libelf_setshstrndx(Elf *e, void *eh, int ec, size_t shstrndx)
 }
 
 int
-_libelf_setphnum(Elf *e, void *eh, int ec, size_t phnum)
+_libelf_setphnum(Elf *e, void *eh, unsigned int ec, size_t phnum)
 {
 	Elf_Scn *scn;
 

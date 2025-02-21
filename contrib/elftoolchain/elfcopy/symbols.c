@@ -34,13 +34,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: symbols.c 3520 2017-04-17 01:47:52Z kaiwang27 $");
-
-/* Backwards compatibility for systems with older ELF definitions. */
-#ifndef STB_GNU_UNIQUE
-#define	STB_GNU_UNIQUE 10
-#endif
-
+ELFTC_VCSID("$Id: symbols.c 3812 2020-02-07 02:18:26Z emaste $");
 
 /* Symbol table buffer structure. */
 struct symbuf {
@@ -941,7 +935,7 @@ add_to_symtab(struct elfcopy *ecp, const char *name, uint64_t st_value,
 			hash = str_hash(name);				\
 			LIST_INSERT_HEAD(&st_buf->B.hash[hash], sh,	\
 			    sh_next);					\
-			strncpy(&st_buf->B.buf[st_buf->B.sz], name,	\
+			memcpy(&st_buf->B.buf[st_buf->B.sz], name,	\
 			    strlen(name));				\
 			st_buf->B.buf[st_buf->B.sz + strlen(name)] = '\0'; \
 			st_buf->B.sz += strlen(name) + 1;		\

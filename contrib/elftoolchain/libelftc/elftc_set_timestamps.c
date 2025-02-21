@@ -30,14 +30,14 @@
 
 #include "_libelftc.h"
 
-ELFTC_VCSID("$Id$");
+ELFTC_VCSID("$Id: elftc_set_timestamps.c 4110 2025-01-27 09:10:02Z jkoshy $");
 
 /*
  * Determine the field name for the timestamp fields inside a 'struct
  * stat'.
  */
 
-#if	defined(__FreeBSD__) || defined(__NetBSD__) || defined(__APPLE__)
+#if	defined(__FreeBSD__) || defined(__NetBSD__)
 #define	ATIME	st_atimespec
 #define	MTIME	st_mtimespec
 #define	LIBELFTC_HAVE_UTIMES	1

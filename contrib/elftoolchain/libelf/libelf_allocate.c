@@ -28,6 +28,8 @@
  * Internal APIs
  */
 
+/*@ELFTC-INCLUDE-SYS-CDEFS@*/
+
 #include <assert.h>
 #include <errno.h>
 #include <libelf.h>
@@ -36,7 +38,9 @@
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: libelf_allocate.c 3738 2019-05-05 21:49:06Z jkoshy $");
+ELFTC_VCSID("$Id: libelf_allocate.c 3977 2022-05-01 06:45:34Z jkoshy $");
+
+/*@ELFTC-USE-DOWNSTREAM-VCSID@*/
 
 Elf *
 _libelf_allocate_elf(void)
@@ -69,7 +73,7 @@ _libelf_init_elf(Elf *e, Elf_Kind kind)
 
 	switch (kind) {
 	case ELF_K_ELF:
-		RB_INIT(&e->e_u.e_elf.e_scn);
+		STAILQ_INIT(&e->e_u.e_elf.e_scn);
 		break;
 	default:
 		break;
@@ -98,7 +102,7 @@ _libelf_release_elf(Elf *e)
 			break;
 		}
 
-		assert(RB_EMPTY(&e->e_u.e_elf.e_scn));
+		assert(STAILQ_EMPTY(&e->e_u.e_elf.e_scn));
 
 		if (e->e_flags & LIBELF_F_AR_HEADER) {
 			arh = e->e_hdr.e_arhdr;
@@ -159,7 +163,7 @@ _libelf_allocate_scn(Elf *e, size_t ndx)
 	STAILQ_INIT(&s->s_data);
 	STAILQ_INIT(&s->s_rawdata);
 
-	RB_INSERT(scntree, &e->e_u.e_elf.e_scn, s);
+	STAILQ_INSERT_TAIL(&e->e_u.e_elf.e_scn, s, s_next);
 
 	return (s);
 }
@@ -187,7 +191,7 @@ _libelf_release_scn(Elf_Scn *s)
 
 	assert(e != NULL);
 
-	RB_REMOVE(scntree, &e->e_u.e_elf.e_scn, s);
+	STAILQ_REMOVE(&e->e_u.e_elf.e_scn, s, _Elf_Scn, s_next);
 
 	free(s);
 

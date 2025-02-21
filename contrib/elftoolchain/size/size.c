@@ -25,7 +25,6 @@
  */
 
 #include <assert.h>
-#include <capsicum_helpers.h>
 #include <err.h>
 #include <fcntl.h>
 #include <gelf.h>
@@ -35,14 +34,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
-
-#include <libcasper.h>
-#include <casper/cap_fileargs.h>
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: size.c 3458 2016-05-09 15:01:25Z emaste $");
+ELFTC_VCSID("$Id: size.c 3950 2021-09-08 20:04:20Z jkoshy $");
 
 #define	BUF_SIZE			1024
 #define	ELF_ALIGN(val,x) (((val)+(x)-1) & ~((x)-1))
@@ -50,6 +47,7 @@ ELFTC_VCSID("$Id: size.c 3458 2016-05-09 15:01:25Z emaste $");
 
 enum return_code {
 	RETURN_OK,
+	RETURN_NOINPUT,
 	RETURN_DATAERR,
 	RETURN_USAGE
 };
@@ -71,6 +69,7 @@ static int show_totals;
 static int size_option;
 static enum radix_style radix = RADIX_DECIMAL;
 static enum output_style style = STYLE_BERKELEY;
+static const char *default_args[2] = { "a.out", NULL };
 
 static struct {
 	int row;
@@ -99,14 +98,14 @@ static void	berkeley_header(void);
 static void	berkeley_totals(void);
 static int	handle_core(char const *, Elf *elf, GElf_Ehdr *);
 static void	handle_core_note(Elf *, GElf_Ehdr *, GElf_Phdr *, char **);
-static int	handle_elf(int, char const *);
+static int	handle_elf(char const *);
 static void	handle_phdr(Elf *, GElf_Ehdr *, GElf_Phdr *, uint32_t,
 		    const char *);
 static void	show_version(void);
 static void	sysv_header(const char *, Elf_Arhdr *);
 static void	sysv_footer(void);
 static void	sysv_calc(Elf *, GElf_Ehdr *, GElf_Shdr *);
-static void	usage(void);
+static void	usage(int);
 static void	tbl_new(int);
 static void	tbl_print(const char *, int);
 static void	tbl_print_num(uint64_t, enum radix_style, int);
@@ -121,11 +120,8 @@ static void	tbl_flush(void);
 int
 main(int argc, char **argv)
 {
-	cap_rights_t rights;
-	fileargs_t *fa;
-	int ch, fd, r, rc;
-	const char *fn;
-	char *defaultfn;
+	int ch, r, rc;
+	const char **files, *fn;
 
 	rc = RETURN_OK;
 
@@ -167,7 +163,7 @@ main(int argc, char **argv)
 				else {
 					warnx("unrecognized format \"%s\".",
 					      optarg);
-					usage();
+					usage(EX_USAGE);
 				}
 				break;
 			case OPT_RADIX:
@@ -181,7 +177,7 @@ main(int argc, char **argv)
 				else {
 					warnx("unsupported radix \"%s\".",
 					      optarg);
-					usage();
+					usage(EX_USAGE);
 				}
 				break;
 			default:
@@ -190,53 +186,31 @@ main(int argc, char **argv)
 			}
 			break;
 		case 'h':
+			usage(EX_OK);
+			break;
 		case '?':
 		default:
-			usage();
-			/* NOTREACHED */
+			usage(EX_USAGE);
+			break;
 		}
 	argc -= optind;
 	argv += optind;
 
-	if (argc == 0) {
-		defaultfn = strdup("a.out");
-		if (defaultfn == NULL)
-			err(EXIT_FAILURE, "strdup");
-		argc = 1;
-		argv = &defaultfn;
-	} else {
-		defaultfn = NULL;
-	}
+	files = (argc == 0) ? default_args : (void *) argv;
 
-	cap_rights_init(&rights, CAP_FSTAT, CAP_MMAP_R);
-	fa = fileargs_init(argc, argv, O_RDONLY, 0, &rights, FA_OPEN);
-	if (fa == NULL)
-		err(EXIT_FAILURE, "failed to initialize fileargs");
-
-	caph_cache_catpages();
-	if (caph_limit_stdio() < 0)
-		err(EXIT_FAILURE, "failed to limit stdio rights");
-	if (caph_enter_casper() < 0)
-		err(EXIT_FAILURE, "failed to enter capability mode");
-
-	for (; argc > 0; argc--, argv++) {
-		fn = argv[0];
-		fd = fileargs_open(fa, fn);
-		if (fd < 0) {
-			warn("%s: Failed to open", fn);
-			continue;
-		}
-		rc = handle_elf(fd, fn);
+	while ((fn = *files) != NULL) {
+		rc = handle_elf(fn);
 		if (rc != RETURN_OK)
-			warnx("%s: File format not recognized", fn);
+			warnx(rc == RETURN_NOINPUT ?
+			      "'%s': No such file" :
+			      "%s: File format not recognized", fn);
+		files++;
 	}
 	if (style == STYLE_BERKELEY) {
 		if (show_totals)
 			berkeley_totals();
 		tbl_flush();
 	}
-	fileargs_free(fa);
-	free(defaultfn);
         return (rc);
 }
 
@@ -298,7 +272,7 @@ handle_core_note(Elf *elf, GElf_Ehdr *elfhdr, GElf_Phdr *phdr,
 	static pid_t pid;
 	uintptr_t ver;
 	Elf32_Nhdr *nhdr, nhdr_l;
-	static int reg_pseudo = 0, reg2_pseudo = 0 /*, regxfp_pseudo = 0*/;
+	static int reg_pseudo = 0, reg2_pseudo = 0, regxfp_pseudo = 0;
 	char buf[BUF_SIZE], *data, *name;
 
  	if (elf == NULL || elfhdr == NULL || phdr == NULL)
@@ -402,7 +376,6 @@ handle_core_note(Elf *elf, GElf_Ehdr *elfhdr, GElf_Phdr *phdr,
 				text_size_total += nhdr_l.n_descsz;
 			}
 			break;
-#if 0
 		case NT_AUXV:
 			if (style == STYLE_SYSV) {
 				tbl_append();
@@ -433,7 +406,6 @@ handle_core_note(Elf *elf, GElf_Ehdr *elfhdr, GElf_Phdr *phdr,
 			}
 			break;
 		case NT_PSINFO:
-#endif
 		case NT_PRPSINFO: {
 			/* FreeBSD 64-bit */
 			if (nhdr_l.n_descsz == 0x78 &&
@@ -459,10 +431,8 @@ handle_core_note(Elf *elf, GElf_Ehdr *elfhdr, GElf_Phdr *phdr,
 			}
 			break;
 		}
-#if 0
 		case NT_PSTATUS:
 		case NT_LWPSTATUS:
-#endif
 		default:
 			break;
 		}
@@ -612,7 +582,7 @@ handle_core(char const *name, Elf *elf, GElf_Ehdr *elfhdr)
  * or the size of the text, data, bss sections will be printed out.
  */
 static int
-handle_elf(int fd, const char *name)
+handle_elf(char const *name)
 {
 	GElf_Ehdr elfhdr;
 	GElf_Shdr shdr;
@@ -620,7 +590,13 @@ handle_elf(int fd, const char *name)
 	Elf_Arhdr *arhdr;
 	Elf_Scn *scn;
 	Elf_Cmd elf_cmd;
-	int exit_code;
+	int exit_code, fd;
+
+	if (name == NULL)
+		return (RETURN_NOINPUT);
+
+	if ((fd = open(name, O_RDONLY, 0)) < 0)
+		return (RETURN_NOINPUT);
 
 	elf_cmd = ELF_C_READ;
 	elf1 = elf_begin(fd, elf_cmd, NULL);
@@ -939,15 +915,15 @@ Usage: %s [options] file ...\n\
   -x                 Equivalent to `--radix=16'.\n"
 
 static void
-usage(void)
+usage(int exit_code)
 {
 	(void) fprintf(stderr, USAGE_MESSAGE, ELFTC_GETPROGNAME());
-	exit(EXIT_FAILURE);
+	exit(exit_code);
 }
 
 static void
 show_version(void)
 {
 	(void) printf("%s (%s)\n", ELFTC_GETPROGNAME(), elftc_version());
-	exit(EXIT_SUCCESS);
+	exit(EX_OK);
 }

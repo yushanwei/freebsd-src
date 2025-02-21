@@ -24,11 +24,15 @@
  * SUCH DAMAGE.
  */
 
+/*@ELFTC-INCLUDE-SYS-CDEFS@*/
+
 #include <libelf.h>
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: libelf_fsize.m4 2225 2011-11-26 18:55:54Z jkoshy $");
+ELFTC_VCSID("$Id: libelf_fsize.m4 4074 2025-01-07 15:34:21Z jkoshy $");
+
+/*@ELFTC-USE-DOWNSTREAM-VCSID@*/
 
 /* WARNING: GENERATED FROM __file__. */
 
@@ -140,7 +144,7 @@ FSIZES(ELF_TYPE_LIST)
 };
 
 size_t
-_libelf_fsize(Elf_Type t, int ec, unsigned int v, size_t c)
+_libelf_fsize(Elf_Type t, unsigned int ec, unsigned int v, size_t c)
 {
 	size_t sz;
 

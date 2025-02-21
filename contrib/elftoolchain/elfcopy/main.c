@@ -32,14 +32,16 @@
 #include <fcntl.h>
 #include <getopt.h>
 #include <libelftc.h>
+#include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: main.c 3757 2019-06-28 01:15:28Z emaste $");
+ELFTC_VCSID("$Id: main.c 3971 2022-04-23 11:57:28Z jkoshy $");
 
 enum options
 {
@@ -220,9 +222,9 @@ static int	copy_from_tempfile(const char *src, const char *dst,
 static void	create_file(struct elfcopy *ecp, const char *src,
     const char *dst);
 static void	elfcopy_main(struct elfcopy *ecp, int argc, char **argv);
-static void	elfcopy_usage(void);
+static void	elfcopy_usage(int);
 static void	mcs_main(struct elfcopy *ecp, int argc, char **argv);
-static void	mcs_usage(void);
+static void	mcs_usage(int);
 static void	parse_sec_address_op(struct elfcopy *ecp, int optnum,
     const char *optname, char *s);
 static void	parse_sec_flags(struct sec_action *sac, char *s);
@@ -233,7 +235,7 @@ static void	set_input_target(struct elfcopy *ecp, const char *target_name);
 static void	set_osabi(struct elfcopy *ecp, const char *abi);
 static void	set_output_target(struct elfcopy *ecp, const char *target_name);
 static void	strip_main(struct elfcopy *ecp, int argc, char **argv);
-static void	strip_usage(void);
+static void	strip_usage(int);
 
 /*
  * An ELF object usually has a structure described by the
@@ -372,14 +374,6 @@ create_elf(struct elfcopy *ecp)
 		create_symtab(ecp);
 
 	/*
-	 * Write the underlying ehdr. Note that it should be called
-	 * before elf_setshstrndx() since it will overwrite e->e_shstrndx.
-	 */
-	if (gelf_update_ehdr(ecp->eout, &oeh) == 0)
-		errx(EXIT_FAILURE, "gelf_update_ehdr() failed: %s",
-		    elf_errmsg(-1));
-
-	/*
 	 * First processing of output sections: at this stage we copy the
 	 * content of each section from input to output object.  Section
 	 * content will be modified and printed (mcs) if need. Also content of
@@ -387,6 +381,14 @@ create_elf(struct elfcopy *ecp)
 	 * to symbol table changes.
 	 */
 	copy_content(ecp);
+
+	/*
+	 * Write the underlying ehdr. Note that it should be called
+	 * before elf_setshstrndx() since it will overwrite e->e_shstrndx.
+	 */
+	if (gelf_update_ehdr(ecp->eout, &oeh) == 0)
+		errx(EXIT_FAILURE, "gelf_update_ehdr() failed: %s",
+		    elf_errmsg(-1));
 
 	/*
 	 * Second processing of output sections: Update section headers.
@@ -531,59 +533,99 @@ cleanup_tempfile(char *fn)
 	return 0;
 }
 
-/* Create a temporary file. */
+/*
+ * Determine the directory to write to.
+ *
+ * If 'src' is non-NULL, it is treated as a file name whose containing
+ * directory is returned.
+ *
+ * If 'src' is NULL and if the environment variable TMPDIR is non-empty,
+ * then the value of TMPDIR is used.
+ *
+ * If 'src' is NULL and if the environment variable TMPDIR is empty,
+ * then the string "/tmp" is returned.
+ *
+ * The returned pointer is owned by the caller.
+ */
+static char *
+get_directory_path(const char *src)
+{
+	char	*tmpsrc, *tmpdir;
+
+	if (src == NULL) {
+		if ((tmpdir = getenv("TMPDIR")) == NULL || *tmpdir == '\0')
+			return strdup("/tmp");
+		return strdup(tmpdir);
+	}
+
+	/* Make a copy of 'src', so that dirname(3) can be used. */
+	tmpsrc = strdup(src);
+
+	tmpdir = strdup(dirname(tmpsrc));
+
+	free(tmpsrc);
+
+	return (tmpdir);
+}
+
+/*
+ * Create a temporary file.
+ *
+ * If 'src' is non-NULL, the temporary file is created in its containing
+ * directory.  Otherwise, the temporary file is created in the directory
+ * named by $TMPDIR if $TMPDIR is set, or in /tmp otherwise.
+ *
+ * The generated temporary file is stored in '*fn' and a file descriptor
+ * opened for reading and writing is stored in '*fd'.
+ */
 void
 create_tempfile(const char *src, char **fn, int *fd)
 {
-	static const char _TEMPDIR[] = "/tmp/";
-	static const char _TEMPFILE[] = "ecp.XXXXXXXX";
-	const char	*tmpdir;
-	char		*tmpf;
-	size_t		 tlen, slen, plen;
+	static const char _TEMPLATE[] = "/ecp.XXXXXXXX";
+	char		*tmpdir;
+	char		*tmpfile;
+	size_t		 pathlen, retries;
 
 	if (fn == NULL || fd == NULL)
 		return;
-	for (;;) {
-		if (src == NULL) {
-			/* Respect TMPDIR environment variable. */
-			tmpdir = getenv("TMPDIR");
-			if (tmpdir == NULL || *tmpdir == '\0')
-				tmpdir = _TEMPDIR;
-			tlen = strlen(tmpdir);
-			slen = tmpdir[tlen - 1] == '/' ? 0 : 1;
-		} else {
-			/* Create temporary file relative to source file. */
-			if ((tmpdir = strrchr(src, '/')) == NULL) {
-				/* No path, only use a template filename. */
-				tlen = 0;
-			} else {
-				/* Append the template after the slash. */
-				tlen = ++tmpdir - src;
-				tmpdir = src;
-			}
-			slen = 0;
-		}
-		plen = strlen(_TEMPFILE) + 1;
-		tmpf = malloc(tlen + slen + plen);
-		if (tmpf == NULL)
+
+	/*
+	 * If src is not NULL, we first try to create the temporary file in
+	 * the containing directory for 'src'.  If that attempt fails, we
+	 * try again using ${TMPDIR:-/tmp}.
+	 *
+	 * If src is NULL, we only try once to create the file in
+	 * ${TMPDIR:-/tmp}.
+	 */
+	for (retries = (src == NULL); retries < 2; src = NULL, retries++) {
+		tmpdir = get_directory_path(src);
+
+		/*
+		 * Reserve space for the directory name and the template,
+		 * including its trailing NUL.
+		 */
+		pathlen = strlen(tmpdir) + sizeof(_TEMPLATE);
+		if ((tmpfile = malloc(pathlen)) == NULL)
 			err(EXIT_FAILURE, "malloc failed");
-		if (tlen > 0)
-			memcpy(tmpf, tmpdir, tlen);
-		if (slen > 0)
-			tmpf[tlen] = '/';
-		/* Copy template filename including NUL terminator. */
-		memcpy(tmpf + tlen + slen, _TEMPFILE, plen);
-		if ((*fd = mkstemp(tmpf)) != -1)
-			break;
-		if (errno != EACCES || src == NULL)
-			err(EXIT_FAILURE, "mkstemp %s failed", tmpf);
-		/* Permission denied, try again using TMPDIR or /tmp. */
-		free(tmpf);
-		src = NULL;
+
+		/* Construct the file path. */
+		stpcpy(stpcpy(tmpfile, tmpdir), _TEMPLATE);
+
+		free(tmpdir);
+
+		/* Try to create the file */
+		errno = 0;
+		if ((*fd = mkstemp(tmpfile)) != -1)
+			break;	/* Success. */
+
+		/* Otherwise, check if we should retry. */
+		if (errno != EACCES || retries != 0)
+			err(EXIT_FAILURE, "mkstemp %s failed", tmpfile);
 	}
+
 	if (fchmod(*fd, 0644) == -1)
-		err(EXIT_FAILURE, "fchmod %s failed", tmpf);
-	*fn = tmpf;
+		err(EXIT_FAILURE, "fchmod %s failed", tmpfile);
+	*fn = tmpfile;
 }
 
 /*
@@ -605,16 +647,16 @@ copy_from_tempfile(const char *src, const char *dst, int infd, int *outfd,
 		if (rename(src, dst) >= 0) {
 			*outfd = infd;
 			return (0);
-		} else if (errno != EXDEV && errno != EACCES)
+		} else if (errno != EXDEV)
 			return (-1);
-
+	
 		/*
 		 * If the rename() failed due to 'src' and 'dst' residing in
 		 * two different file systems, invoke a helper function in
 		 * libelftc to do the copy.
 		 */
 
-		if (errno != EACCES && unlink(dst) < 0)
+		if (unlink(dst) < 0)
 			return (-1);
 	}
 
@@ -738,8 +780,6 @@ create_file(struct elfcopy *ecp, const char *src, const char *dst)
 
 	if ((ecp->ein = elf_begin(ifd, ELF_C_READ, NULL)) == NULL) {
 		cleanup_tempfile(tempfile);
-		if (fstat(ifd, &sb) == 0 && sb.st_size == 0)
-			errx(EXIT_FAILURE, "file format not recognized");
 		errx(EXIT_FAILURE, "elf_begin() failed: %s",
 		    elf_errmsg(-1));
 	}
@@ -986,6 +1026,7 @@ elfcopy_main(struct elfcopy *ecp, int argc, char **argv)
 			parse_symlist_file(ecp, optarg, SYMOP_KEEP);
 			break;
 		case ECP_KEEP_GLOBAL_SYMBOLS:
+			ecp->flags |= KEEP_GLOBAL;
 			parse_symlist_file(ecp, optarg, SYMOP_KEEPG);
 			break;
 		case ECP_LOCALIZE_HIDDEN:
@@ -1079,7 +1120,7 @@ elfcopy_main(struct elfcopy *ecp, int argc, char **argv)
 			parse_symlist_file(ecp, optarg, SYMOP_WEAKEN);
 			break;
 		default:
-			elfcopy_usage();
+			elfcopy_usage(EX_USAGE);
 		}
 	}
 
@@ -1087,7 +1128,7 @@ elfcopy_main(struct elfcopy *ecp, int argc, char **argv)
 	argv += optind;
 
 	if (argc == 0 || argc > 2)
-		elfcopy_usage();
+		elfcopy_usage(EX_USAGE);
 
 	infile = argv[0];
 	outfile = NULL;
@@ -1131,8 +1172,11 @@ mcs_main(struct elfcopy *ecp, int argc, char **argv)
 			print_version();
 			break;
 		case 'h':
+			mcs_usage(EX_OK);
+			break;
 		default:
-			mcs_usage();
+			mcs_usage(EX_USAGE);
+			break;
 		}
 	}
 
@@ -1140,11 +1184,11 @@ mcs_main(struct elfcopy *ecp, int argc, char **argv)
 	argv += optind;
 
 	if (argc == 0)
-		mcs_usage();
+		mcs_usage(EX_USAGE);
 
 	/* Must specify one operation at least. */
 	if (!append && !compress && !delete && !print)
-		mcs_usage();
+		mcs_usage(EX_USAGE);
 
 	/*
 	 * If we are going to delete, ignore other operations. This is
@@ -1247,8 +1291,11 @@ strip_main(struct elfcopy *ecp, int argc, char **argv)
 			ecp->strip = STRIP_UNNEEDED;
 			break;
 		case 'h':
+			strip_usage(EX_OK);
+			break;
 		default:
-			strip_usage();
+			strip_usage(EX_USAGE);
+			break;
 		}
 	}
 
@@ -1261,13 +1308,13 @@ strip_main(struct elfcopy *ecp, int argc, char **argv)
 	    lookup_symop_list(ecp, NULL, SYMOP_STRIP) == NULL)
 		ecp->strip = STRIP_ALL;
 	if (argc == 0)
-		strip_usage();
+		strip_usage(EX_USAGE);
 	/*
 	 * Only accept a single input file if an output file had been
 	 * specified.
 	 */
 	if (outfile != NULL && argc != 1)
-		strip_usage();
+		strip_usage(EX_USAGE);
 
 	for (i = 0; i < argc; i++)
 		create_file(ecp, argv[i], outfile);
@@ -1490,6 +1537,10 @@ Usage: %s [options] infile [outfile]\n\
   -p | --preserve-dates        Preserve access and modification times.\n\
   -w | --wildcard              Use shell-style patterns to name symbols.\n\
   -x | --discard-all           Do not copy non-globals to the output.\n\
+  -G SYMFILE | --keep-global-symbols=SYMFILE\n\
+                               Keep the symbols specified in SYMFILE as\n\
+			       global, making other symbols local to the\n\
+			       file.\n\
   -I FORMAT | --input-target=FORMAT\n\
                                Specify object format for the input file.\n\
   -K SYM | --keep-symbol=SYM   Copy symbol SYM to the output.\n\
@@ -1530,6 +1581,9 @@ Usage: %s [options] infile [outfile]\n\
                                section by VAL.\n\
   --gap-fill=VAL               Fill the gaps between sections with bytes\n\
                                of value VAL.\n\
+  --keep-global-symbol=SYM     Keep the symbol SYM as global, and make any\n\
+                               other symbols not otherwise specified as\n\
+			       global to be local to the file.\n\
   --localize-hidden            Make all hidden symbols local to the output\n\
                                file.\n\
   --no-adjust-warning| --no-change-warnings\n\
@@ -1558,10 +1612,10 @@ Usage: %s [options] infile [outfile]\n\
   --strip-unneeded             Do not copy relocation information.\n"
 
 static void
-elfcopy_usage(void)
+elfcopy_usage(int exit_code)
 {
 	(void) fprintf(stderr, ELFCOPY_USAGE_MESSAGE, ELFTC_GETPROGNAME());
-	exit(EXIT_FAILURE);
+	exit(exit_code);
 }
 
 #define	MCS_USAGE_MESSAGE	"\
@@ -1577,10 +1631,10 @@ Usage: %s [options] file...\n\
   -V | --version   Print a version identifier and exit.\n"
 
 static void
-mcs_usage(void)
+mcs_usage(int exit_code)
 {
 	(void) fprintf(stderr, MCS_USAGE_MESSAGE, ELFTC_GETPROGNAME());
-	exit(EXIT_FAILURE);
+	exit(exit_code);
 }
 
 #define	STRIP_USAGE_MESSAGE	"\
@@ -1606,10 +1660,10 @@ Usage: %s [options] file...\n\
   -X | --discard-locals           Remove compiler-generated local symbols.\n"
 
 static void
-strip_usage(void)
+strip_usage(int exit_code)
 {
 	(void) fprintf(stderr, STRIP_USAGE_MESSAGE, ELFTC_GETPROGNAME());
-	exit(EXIT_FAILURE);
+	exit(exit_code);
 }
 
 static void

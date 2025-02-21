@@ -22,7 +22,7 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: elftc_string_table_create.3 3750 2019-06-28 01:12:10Z emaste $
+.\" $Id: elftc_string_table_create.3 3960 2022-03-12 14:41:41Z jkoshy $
 .\"
 .Dd June 27, 2019
 .Dt ELFTC_STRING_TABLE_CREATE 3
@@ -78,45 +78,47 @@ Function
 .Fn elftc_string_table_create
 creates a new, empty string table.
 The argument
-.Ar sizehint
+.Fa sizehint
 provides a hint about the expected number of bytes of string data in
 the table.
 If the argument
-.Ar sizehint
+.Fa sizehint
 is zero, an implementation-defined default will be used instead.
 .Pp
 Function
 .Fn elftc_string_table_destroy
 destroys the previously allocated string table specified by
 argument
-.Ar table ,
+.Fa table ,
 and frees the internal resources allocated for it.
 .Pp
 Function
 .Fn elftc_string_table_from_section
 creates a new string table and initializes it based on the
 contents of the section specified by argument
-.Ar scn .
+.Fa scn .
 This section must be of type
 .Dv SHT_STRTAB .
 The argument
-.Ar sizehint
+.Fa sizehint
 provides a hint about expected number of bytes of string data in the
 table.
 If the value of
-.Ar sizehint
+.Fa sizehint
 is zero, an implementation-default will be used instead.
 .Pp
 Function
 .Fn elftc_string_table_image
 returns a pointer to the ELF representation of the contents of the
 string table specified by argument
-.Ar table .
+.Fa table .
 If argument
-.Ar size
-is not NULL, the size of the ELF representation of the string table is
+.Fa size
+is not
+.Dv NULL ,
+the size of the ELF representation of the string table is
 stored in the location pointed to by argument
-.Ar size .
+.Fa size .
 The function
 .Fn elftc_string_table_image
 will compact the string table if the table contains deleted strings.
@@ -129,9 +131,9 @@ should be treated as invalid after a call to this function.
 Function
 .Fn elftc_string_table_insert
 inserts the NUL-terminated string pointed to by argument
-.Ar string
+.Fa string
 into the string table specified by argument
-.Ar table ,
+.Fa table ,
 and returns an offset value usable in ELF data structures.
 Multiple insertions of the same content will return the same offset.
 The offset returned will remain valid until the next call to
@@ -140,9 +142,9 @@ The offset returned will remain valid until the next call to
 Function
 .Fn elftc_string_table_lookup
 looks up the string referenced by argument
-.Ar string
+.Fa string
 in the string table specified by argument
-.Ar table ,
+.Fa table ,
 and if found, returns the offset associated with the string.
 The returned offset will be valid until the next call to
 .Fn elftc_string_table_image .
@@ -150,19 +152,19 @@ The returned offset will be valid until the next call to
 Function
 .Fn elftc_string_table_remove
 removes the string pointed by argument
-.Ar string
+.Fa string
 from the string table referenced by argument
-.Ar table ,
+.Fa table ,
 if it is present in the string table.
 .Pp
 Function
 .Fn elftc_string_table_to_string
 returns a pointer to the NUL-terminated string residing at argument
-.Ar offset
+.Fa offset
 in the string table specified by argument
-.Ar table .
+.Fa table .
 The value of argument
-.Ar offset
+.Fa offset
 should be one returned by a prior call to
 .Fn elftc_string_table_insert
 or
@@ -191,7 +193,7 @@ have O(1) asymptotic behavior.
 The function
 .Fn elftc_string_table_image
 can have O(size) asymptotic behavior, where
-.Ar size
+.Fa size
 denotes the size of the string table.
 .Sh RETURN VALUES
 Functions
@@ -200,12 +202,16 @@ and
 .Fn elftc_string_table_from_section
 return a valid pointer to an opaque structure of type
 .Vt Elftc_String_Table
-on success, or NULL in case of an error.
+on success, or
+.Dv NULL
+in case of an error.
 .Pp
 The function
 .Fn elftc_string_table_image
 returns a pointer to an in-memory representation of an ELF string
-table on success, or NULL in case of an error.
+table on success, or
+.Dv NULL
+in case of an error.
 .Pp
 Functions
 .Fn elftc_string_table_insert
@@ -219,7 +225,9 @@ returns a positive value on success, or zero in case of an error.
 .Pp
 Function
 .Fn elftc_string_table_to_string
-returns a valid pointer on success, or NULL in case of an error.
+returns a valid pointer on success, or
+.Dv NULL
+in case of an error.
 .Sh SEE ALSO
 .Xr dwarf 3 ,
 .Xr elf 3 ,

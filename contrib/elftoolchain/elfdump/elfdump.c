@@ -41,6 +41,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #ifdef USE_LIBARCHIVE_AR
@@ -50,16 +51,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: elfdump.c 3762 2019-06-28 21:06:24Z emaste $");
-
-#if defined(ELFTC_NEED_ELF_NOTE_DEFINITION)
-#include "native-elf-format.h"
-#if ELFTC_CLASS == ELFCLASS32
-typedef Elf32_Nhdr	Elf_Note;
-#else
-typedef Elf64_Nhdr	Elf_Note;
-#endif
-#endif
+ELFTC_VCSID("$Id: elfdump.c 4075 2025-01-08 13:22:37Z jkoshy $");
 
 /* elfdump(1) options. */
 #define	ED_DYN		(1<<0)
@@ -234,36 +226,6 @@ d_tags(uint64_t tag)
 }
 
 static const char *
-e_machines(unsigned int mach)
-{
-	static char machdesc[64];
-
-	switch (mach) {
-	case EM_NONE:	return "EM_NONE";
-	case EM_M32:	return "EM_M32";
-	case EM_SPARC:	return "EM_SPARC";
-	case EM_386:	return "EM_386";
-	case EM_68K:	return "EM_68K";
-	case EM_88K:	return "EM_88K";
-	case EM_IAMCU:	return "EM_IAMCU";
-	case EM_860:	return "EM_860";
-	case EM_MIPS:	return "EM_MIPS";
-	case EM_PPC:	return "EM_PPC";
-	case EM_PPC64:	return "EM_PPC64";
-	case EM_ARM:	return "EM_ARM";
-	case EM_ALPHA:	return "EM_ALPHA (legacy)";
-	case EM_SPARCV9:return "EM_SPARCV9";
-	case EM_IA_64:	return "EM_IA_64";
-	case EM_X86_64:	return "EM_X86_64";
-	case EM_AARCH64:return "EM_AARCH64";
-	case EM_RISCV:	return "EM_RISCV";
-	}
-	snprintf(machdesc, sizeof(machdesc),
-	    "(unknown machine) -- type 0x%x", mach);
-	return (machdesc);
-}
-
-static const char *
 elf_type_str(unsigned int type)
 {
 	static char s_type[32];
@@ -327,11 +289,25 @@ elf_data_str(unsigned int data)
 }
 
 static const char *ei_abis[256] = {
-	"ELFOSABI_NONE", "ELFOSABI_HPUX", "ELFOSABI_NETBSD", "ELFOSABI_LINUX",
-	"ELFOSABI_HURD", "ELFOSABI_86OPEN", "ELFOSABI_SOLARIS", "ELFOSABI_AIX",
-	"ELFOSABI_IRIX", "ELFOSABI_FREEBSD", "ELFOSABI_TRU64",
-	"ELFOSABI_MODESTO", "ELFOSABI_OPENBSD",
+	[0] = "ELFOSABI_NONE",
+	[1] = "ELFOSABI_HPUX",
+	[2] = "ELFOSABI_NETBSD",
+	[3] = "ELFOSABI_GNU",
+	[4] = "ELFOSABI_HURD",
+	[5] = "ELFOSABI_86OPEN",
+	[6] = "ELFOSABI_SOLARIS",
+	[7] = "ELFOSABI_AIX",
+	[8] = "ELFOSABI_IRIX",
+	[9] = "ELFOSABI_FREEBSD",
+	[10] = "ELFOSABI_TRU64",
+	[11] = "ELFOSABI_MODESTO",
+	[12] = "ELFOSABI_OPENBSD",
+	[13] = "ELFOSABI_OPENVMS",
+	[14] = "ELFOSABI_NSK",
+	[15] = "ELFOSABI_AROS",
+	[16] = "ELFOSABI_FENIXOS",
 	[17] = "ELFOSABI_CLOUDABI",
+	[18] = "ELFOSABI_OPENVOS",
 	[64] = "ELFOSABI_ARM_AEABI",
 	[97] = "ELFOSABI_ARM",
 	[255] = "ELFOSABI_STANDALONE"
@@ -611,7 +587,8 @@ static void	elf_print_rel(struct elfdump *ed, struct section *s,
 static void	elf_print_reloc(struct elfdump *ed);
 static void	elf_print_got(struct elfdump *ed);
 static void	elf_print_got_section(struct elfdump *ed, struct section *s);
-static void	elf_print_note(struct elfdump *ed);
+static void	elf_print_notes(struct elfdump *ed);
+static void	elf_print_note(struct elfdump *ed, struct section *s);
 static void	elf_print_svr4_hash(struct elfdump *ed, struct section *s);
 static void	elf_print_svr4_hash64(struct elfdump *ed, struct section *s);
 static void	elf_print_gnu_hash(struct elfdump *ed, struct section *s);
@@ -626,7 +603,7 @@ static const char *get_string(struct elfdump *ed, int strtab, size_t off);
 static void	get_versym(struct elfdump *ed, int i, uint16_t **vs, int *nvs);
 static void	load_sections(struct elfdump *ed);
 static void	unload_sections(struct elfdump *ed);
-static void	usage(void);
+static void	usage(int);
 #ifdef	USE_LIBARCHIVE_AR
 static int	ac_detect_ar(int fd);
 static void	ac_print_ar(struct elfdump *ed, int fd);
@@ -709,10 +686,13 @@ main(int ac, char **av)
 			if ((ed->out = fopen(optarg, "w")) == NULL)
 				err(EXIT_FAILURE, "%s", optarg);
 			break;
-		case '?':
 		case 'H':
+			usage(EX_OK);
+			break;
+		case '?':
 		default:
-			usage();
+			usage(EX_USAGE);
+			break;
 		}
 
 	ac -= optind;
@@ -731,7 +711,7 @@ main(int ac, char **av)
 		}
 	}
 	if (ac == 0)
-		usage();
+		usage(EX_USAGE);
 	if (ac > 1)
 		ed->flags |= PRINT_FILENAME;
 	if (elf_version(EV_CURRENT) == EV_NONE)
@@ -1089,7 +1069,7 @@ elf_print_elf(struct elfdump *ed)
 	if (ed->options & ED_SYMVER)
 		elf_print_symver(ed);
 	if (ed->options & ED_NOTE)
-		elf_print_note(ed);
+		elf_print_notes(ed);
 	if (ed->options & ED_HASH)
 		elf_print_hash(ed);
 	if (ed->options & ED_CHECKSUM)
@@ -1277,10 +1257,18 @@ get_string(struct elfdump *ed, int strtab, size_t off)
 static void
 elf_print_ehdr(struct elfdump *ed)
 {
+	const char *em_name;
+	char em_name_buffer[64];
 
 	if (!STAILQ_EMPTY(&ed->snl))
 		return;
 
+	if ((em_name = elftc_get_machine_name(ed->ehdr.e_machine)) == NULL) {
+		(void) snprintf(em_name_buffer, sizeof(em_name_buffer),
+		    "(unknown machine) -- type 0x%x", ed->ehdr.e_machine);
+		em_name = em_name_buffer;
+	}
+	
 	if (ed->flags & SOLARIS_FMT) {
 		PRT("\nELF Header\n");
 		PRT("  ei_magic:   { %#x, %c, %c, %c }\n",
@@ -1290,7 +1278,7 @@ elf_print_ehdr(struct elfdump *ed)
 		    elf_class_str(ed->ehdr.e_ident[EI_CLASS]));
 		PRT("  ei_data:      %s\n",
 		    elf_data_str(ed->ehdr.e_ident[EI_DATA]));
-		PRT("  e_machine:  %-18s", e_machines(ed->ehdr.e_machine));
+		PRT("  e_machine:  %-18s", em_name);
 		PRT("  e_version:    %s\n",
 		    elf_version_str(ed->ehdr.e_version));
 		PRT("  e_type:     %s\n", elf_type_str(ed->ehdr.e_type));
@@ -1312,7 +1300,7 @@ elf_print_ehdr(struct elfdump *ed)
 		    elf_data_str(ed->ehdr.e_ident[EI_DATA]),
 		    ei_abis[ed->ehdr.e_ident[EI_OSABI]]);
 		PRT("\te_type: %s\n", elf_type_str(ed->ehdr.e_type));
-		PRT("\te_machine: %s\n", e_machines(ed->ehdr.e_machine));
+		PRT("\te_machine: %s\n", em_name);
 		PRT("\te_version: %s\n", elf_version_str(ed->ehdr.e_version));
 		PRT("\te_entry: %#jx\n", (uintmax_t)ed->ehdr.e_entry);
 		PRT("\te_phoff: %ju\n", (uintmax_t)ed->ehdr.e_phoff);
@@ -2041,12 +2029,11 @@ elf_print_got(struct elfdump *ed)
 }
 
 /*
- * Dump the content of .note.ABI-tag section.
+ * Dump the content of a single note section.
  */
 static void
-elf_print_note(struct elfdump *ed)
+elf_print_note(struct elfdump *ed, struct section *s)
 {
-	struct section	*s;
 	Elf_Data        *data;
 	Elf_Note	*en;
 	uint32_t	 namesz;
@@ -2057,16 +2044,6 @@ elf_print_note(struct elfdump *ed)
 	uint8_t		*src;
 	char		 idx[17];
 
-	s = NULL;
-	for (i = 0; (size_t)i < ed->shnum; i++) {
-		s = &ed->sl[i];
-		if (s->type == SHT_NOTE && s->name &&
-		    !strcmp(s->name, ".note.ABI-tag") &&
-		    (STAILQ_EMPTY(&ed->snl) || find_name(ed, s->name)))
-			break;
-	}
-	if ((size_t)i >= ed->shnum)
-		return;
 	if (ed->flags & SOLARIS_FMT)
 		PRT("\nNote Section:  %s\n", s->name);
 	else
@@ -2126,6 +2103,27 @@ elf_print_note(struct elfdump *ed)
 		}
 		src += roundup2(descsz, 4);
 		count -= roundup2(descsz, 4);
+	}
+}
+
+/*
+ * Dump the content of note sections.
+ */
+static void
+elf_print_notes(struct elfdump *ed)
+{
+	struct section	*s;
+	int		 i;
+	
+	if (!STAILQ_EMPTY(&ed->snl))
+		return;
+
+	s = NULL;
+	for (i = 0; (size_t)i < ed->shnum; i++) {
+		s = &ed->sl[i];
+		if (s->type != SHT_NOTE)
+			continue;
+		elf_print_note(ed, s);
 	}
 }
 
@@ -2232,7 +2230,7 @@ elf_print_svr4_hash64(struct elfdump *ed, struct section *s)
 	uint64_t	*bl, *c, j, maxl, total;
 	size_t		 i;
 	int		 elferr, first;
-	char		 idx[10];
+	char		 idx[24];
 
 	if (ed->flags & SOLARIS_FMT)
 		PRT("\nHash Section:  %s\n", s->name);
@@ -2676,8 +2674,8 @@ Usage: %s [options] file...\n\
   -w FILE                   Write output to \"FILE\".\n"
 
 static void
-usage(void)
+usage(int exit_code)
 {
 	fprintf(stderr, USAGE_MESSAGE, ELFTC_GETPROGNAME());
-	exit(EXIT_FAILURE);
+	exit(exit_code);
 }

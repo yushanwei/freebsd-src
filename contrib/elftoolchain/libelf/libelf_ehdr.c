@@ -24,6 +24,8 @@
  * SUCH DAMAGE.
  */
 
+/*@ELFTC-INCLUDE-SYS-CDEFS@*/
+
 #include <assert.h>
 #include <gelf.h>
 #include <libelf.h>
@@ -31,14 +33,16 @@
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: libelf_ehdr.c 3732 2019-04-22 11:08:38Z jkoshy $");
+ELFTC_VCSID("$Id: libelf_ehdr.c 4074 2025-01-07 15:34:21Z jkoshy $");
+
+/*@ELFTC-USE-DOWNSTREAM-VCSID@*/
 
 /*
  * Retrieve counts for sections, phdrs and the section string table index
  * from section header #0 of the ELF object.
  */
 static int
-_libelf_load_extended(Elf *e, int ec, uint64_t shoff, uint16_t phnum,
+_libelf_load_extended(Elf *e, unsigned int ec, uint64_t shoff, uint16_t phnum,
     uint16_t strndx)
 {
 	size_t fsz;
@@ -46,7 +50,7 @@ _libelf_load_extended(Elf *e, int ec, uint64_t shoff, uint16_t phnum,
 	uint32_t shtype;
 	_libelf_translator_function *xlator;
 
-	assert(RB_EMPTY(&e->e_u.e_elf.e_scn));
+	assert(STAILQ_EMPTY(&e->e_u.e_elf.e_scn));
 
 	fsz = _libelf_fsize(ELF_T_SHDR, ec, e->e_version, 1);
 	assert(fsz > 0);
@@ -100,10 +104,10 @@ _libelf_load_extended(Elf *e, int ec, uint64_t shoff, uint16_t phnum,
 		eh->e_machine = EM_NONE;				\
 		eh->e_type    = ELF_K_NONE;				\
 		eh->e_version = LIBELF_PRIVATE(version);		\
-	} while (0)
+	} while (/* CONSTCOND */ 0)
 
 void *
-_libelf_ehdr(Elf *e, int ec, int allocate)
+_libelf_ehdr(Elf *e, unsigned int ec, int allocate)
 {
 	void *ehdr;
 	size_t fsz, msz;

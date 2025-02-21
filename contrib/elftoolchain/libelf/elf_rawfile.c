@@ -24,11 +24,15 @@
  * SUCH DAMAGE.
  */
 
+/*@ELFTC-INCLUDE-SYS-CDEFS@*/
+
 #include <libelf.h>
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: elf_rawfile.c 3712 2019-03-16 22:23:34Z jkoshy $");
+ELFTC_VCSID("$Id: elf_rawfile.c 3977 2022-05-01 06:45:34Z jkoshy $");
+
+/*@ELFTC-USE-DOWNSTREAM-VCSID@*/
 
 char *
 elf_rawfile(Elf *e, size_t *sz)

@@ -1,4 +1,4 @@
-# $Id: Makefile 3608 2018-04-14 21:23:04Z jkoshy $
+# $Id: Makefile 4045 2024-07-08 12:36:29Z jkoshy $
 
 TOP=	..
 
@@ -36,6 +36,8 @@ LINKS=	${BINDIR}/elfcopy ${BINDIR}/mcs		\
 	${BINDIR}/elfcopy ${BINDIR}/strip
 
 EXTRA_TARGETS=	mcs strip objcopy
+
+TEST_FRAMEWORK=	custom
 
 CLEANFILES+=	${EXTRA_TARGETS}
 

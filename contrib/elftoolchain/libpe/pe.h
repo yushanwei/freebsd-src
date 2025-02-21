@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pe.h 3441 2016-04-07 15:04:20Z emaste $
+ * $Id: pe.h 4105 2025-01-25 19:39:39Z jkoshy $
  */
 
 #ifndef	_PE_H_
@@ -81,6 +81,8 @@ typedef struct _PE_RichHdr {
 #define	IMAGE_FILE_MACHINE_EBC		0xebc	/* EFI byte code */
 #define	IMAGE_FILE_MACHINE_I386		0x14c	/* x86 */
 #define	IMAGE_FILE_MACHINE_IA64		0x200	/* IA64 */
+#define	IMAGE_FILE_MACHINE_LOONGARCH32	0x6232	/* LoongArch 32-bit */
+#define	IMAGE_FILE_MACHINE_LOONGARCH64	0x6264	/* LoongArch 64-bit */
 #define	IMAGE_FILE_MACHINE_M32R		0x9041	/* Mitsubishi M32R LE */
 #define	IMAGE_FILE_MACHINE_MIPS16	0x266	/* MIPS16 */
 #define	IMAGE_FILE_MACHINE_MIPSFPU	0x366	/* MIPS with FPU */

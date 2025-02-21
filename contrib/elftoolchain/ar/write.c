@@ -40,7 +40,7 @@
 
 #include "ar.h"
 
-ELFTC_VCSID("$Id: write.c 3629 2018-09-30 19:26:28Z jkoshy $");
+ELFTC_VCSID("$Id: write.c 3812 2020-02-07 02:18:26Z emaste $");
 
 #define _ARMAG_LEN 8		/* length of the magic string */
 #define _ARHDR_LEN 60		/* length of the archive header */
@@ -980,7 +980,7 @@ add_to_ar_sym_table(struct bsdar *bsdar, const char *name)
 		if (bsdar->s_sn == NULL)
 			bsdar_errc(bsdar, errno, "realloc failed");
 	}
-	strncpy(&bsdar->s_sn[bsdar->s_sn_sz], name, strlen(name));
+	memcpy(&bsdar->s_sn[bsdar->s_sn_sz], name, strlen(name));
 	bsdar->s_sn_sz += strlen(name);
 	bsdar->s_sn[bsdar->s_sn_sz++] = '\0';
 }

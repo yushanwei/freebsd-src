@@ -24,6 +24,8 @@
  * SUCH DAMAGE.
  */
 
+/*@ELFTC-INCLUDE-SYS-CDEFS@*/
+
 #include <ar.h>
 #include <assert.h>
 #include <string.h>
@@ -31,7 +33,9 @@
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: libelf_memory.c 3738 2019-05-05 21:49:06Z jkoshy $");
+ELFTC_VCSID("$Id: libelf_memory.c 4074 2025-01-07 15:34:21Z jkoshy $");
+
+/*@ELFTC-USE-DOWNSTREAM-VCSID@*/
 
 /*
  * Create an ELF descriptor for a memory image, optionally reporting
@@ -42,7 +46,7 @@ Elf *
 _libelf_memory(unsigned char *image, size_t sz, int reporterror)
 {
 	Elf *e;
-	int e_class;
+	unsigned int e_class;
 	enum Elf_Error error;
 	unsigned int e_byteorder, e_version;
 

@@ -28,14 +28,13 @@
 #include <sys/stat.h>
 #include <err.h>
 #include <libgen.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: sections.c 3758 2019-06-28 01:16:50Z emaste $");
+ELFTC_VCSID("$Id: sections.c 3827 2020-02-28 00:50:12Z emaste $");
 
 static void	add_gnu_debuglink(struct elfcopy *ecp);
 static uint32_t calc_crc32(const char *p, size_t len, uint32_t crc);
@@ -342,7 +341,6 @@ create_scn(struct elfcopy *ecp)
 	size_t		 indx;
 	uint64_t	 oldndx, newndx;
 	int		 elferr, sec_flags, reorder;
-	bool		 sections_added;
 
 	/*
 	 * Insert a pseudo section that contains the ELF header
@@ -366,7 +364,6 @@ create_scn(struct elfcopy *ecp)
 		errx(EXIT_FAILURE, "elf_getshstrndx failed: %s",
 		    elf_errmsg(-1));
 
-	sections_added = false;
 	reorder = 0;
 	is = NULL;
 	while ((is = elf_nextscn(ecp->ein, is)) != NULL) {
@@ -441,14 +438,12 @@ create_scn(struct elfcopy *ecp)
 		oldndx = newndx = SHN_UNDEF;
 		if (strcmp(name, ".symtab") != 0 &&
 		    strcmp(name, ".strtab") != 0) {
-			/* Add new sections before .shstrtab if we have one. */
 			if (!strcmp(name, ".shstrtab")) {
 				/*
 				 * Add sections specified by --add-section and
 				 * gnu debuglink. we want these sections have
 				 * smaller index than .shstrtab section.
 				 */
-				sections_added = true;
 				if (ecp->debuglink != NULL)
 					add_gnu_debuglink(ecp);
 				if (ecp->flags & SEC_ADD)
@@ -509,12 +504,6 @@ create_scn(struct elfcopy *ecp)
 			ecp->strtab = s;
 
 		insert_to_sec_list(ecp, s, 0);
-	}
-	if (!sections_added) {
-		if (ecp->debuglink != NULL)
-			add_gnu_debuglink(ecp);
-		if (ecp->flags & SEC_ADD)
-			insert_sections(ecp);
 	}
 	elferr = elf_errno();
 	if (elferr != 0)
@@ -652,9 +641,6 @@ update_section_group(struct elfcopy *ecp, struct section *s)
 	ws = id->d_buf;
 
 	/* We only support COMDAT section. */
-#ifndef GRP_COMDAT
-#define	GRP_COMDAT 0x1
-#endif
 	if ((*ws & GRP_COMDAT) == 0)
 		return;
 
@@ -890,43 +876,6 @@ pad_section(struct elfcopy *ecp, struct section *s)
 		    elf_errmsg(-1));
 }
 
-static int
-section_type_alignment(int sht, int class)
-{
-	switch (sht)
-	{
-	case SHT_DYNAMIC:
-	case SHT_DYNSYM:
-	case SHT_FINI_ARRAY:
-	case SHT_GNU_HASH:
-	case SHT_INIT_ARRAY:
-	case SHT_PREINIT_ARRAY:
-	case SHT_REL:
-	case SHT_RELA:
-	case SHT_SYMTAB:
-		return (class == ELFCLASS64 ? 8 : 4);
-	case SHT_SUNW_move:
-		return (8);
-	case SHT_GNU_LIBLIST:
-	case SHT_GROUP:
-	case SHT_HASH:
-	case SHT_NOTE:
-	case SHT_SUNW_verdef:	/* == SHT_GNU_verdef */
-	case SHT_SUNW_verneed:	/* == SHT_GNU_verneed */
-	case SHT_SYMTAB_SHNDX:
-		return (4);
-	case SHT_SUNW_syminfo:
-	case SHT_SUNW_versym:	/* == SHT_GNU_versym */
-		return (2);
-	case SHT_NOBITS:
-	case SHT_PROGBITS:
-	case SHT_STRTAB:
-	case SHT_SUNW_dof:
-		return (1);
-	}
-	return (1);
-}
-
 void
 resync_sections(struct elfcopy *ecp)
 {
@@ -934,7 +883,6 @@ resync_sections(struct elfcopy *ecp)
 	GElf_Shdr	 osh;
 	uint64_t	 off;
 	int		 first;
-	int		 min_alignment;
 
 	ps = NULL;
 	first = 1;
@@ -957,12 +905,6 @@ resync_sections(struct elfcopy *ecp)
 		/* Align section offset. */
 		if (s->align == 0)
 			s->align = 1;
-		min_alignment = section_type_alignment(s->type, ecp->oec);
-		if (s->align < INT_MAX && (int)s->align < min_alignment) {
-			warnx("section %s alignment %d increased to %d",
-			    s->name, (int)s->align, min_alignment);
-			s->align = min_alignment;
-		}
 		if (off <= s->off) {
 			if (!s->loadable || (ecp->flags & RELOCATABLE))
 				s->off = roundup(off, s->align);
@@ -992,7 +934,6 @@ resync_sections(struct elfcopy *ecp)
 			errx(EXIT_FAILURE, "gelf_getshdr() failed: %s",
 			    elf_errmsg(-1));
 		osh.sh_addr = s->vma;
-		osh.sh_addralign = s->align;
 		osh.sh_offset = s->off;
 		osh.sh_size = s->sz;
 		if (!gelf_update_shdr(s->os, &osh))
@@ -1086,7 +1027,7 @@ modify_section(struct elfcopy *ecp, struct section *s)
 	if (is_append_section(ecp, s->name)) {
 		sac = lookup_sec_act(ecp, s->name, 0);
 		len = strlen(sac->string);
-		strncpy(&b[p], sac->string, len);
+		memcpy(&b[p], sac->string, len);
 		b[p + len] = '\0';
 		p += len + 1;
 	}
@@ -1486,7 +1427,6 @@ init_shstrtab(struct elfcopy *ecp)
 	s->vma = 0;
 	s->strtab = elftc_string_table_create(sizehint);
 
-	add_to_shstrtab(ecp, "");
 	add_to_shstrtab(ecp, ".symtab");
 	add_to_shstrtab(ecp, ".strtab");
 	add_to_shstrtab(ecp, ".shstrtab");
@@ -1655,7 +1595,7 @@ add_gnu_debuglink(struct elfcopy *ecp)
 	/* Section content. */
 	if ((sa->content = calloc(1, sa->size)) == NULL)
 		err(EXIT_FAILURE, "malloc failed");
-	strncpy(sa->content, fnbase, strlen(fnbase));
+	memcpy(sa->content, fnbase, strlen(fnbase));
 	if (ecp->oed == ELFDATA2LSB) {
 		sa->content[crc_off] = crc & 0xFF;
 		sa->content[crc_off + 1] = (crc >> 8) & 0xFF;

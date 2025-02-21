@@ -37,7 +37,7 @@
 
 #include "_libelftc.h"
 
-ELFTC_VCSID("$Id: libelftc_dem_arm.c 3513 2016-12-29 07:04:22Z kaiwang27 $");
+ELFTC_VCSID("$Id: libelftc_dem_arm.c 3806 2020-02-07 02:13:49Z emaste $");
 
 /**
  * @file cpp_demangle_arm.c

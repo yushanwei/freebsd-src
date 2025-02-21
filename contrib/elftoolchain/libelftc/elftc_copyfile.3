@@ -21,7 +21,7 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: elftc_copyfile.3 3645 2018-10-15 20:17:14Z jkoshy $
+.\" $Id: elftc_copyfile.3 3960 2022-03-12 14:41:41Z jkoshy $
 .\"
 .Dd December 11, 2011
 .Dt ELFTC_COPYFILE 3
@@ -39,17 +39,17 @@
 The function
 .Fn elftc_copyfile
 copies the contents of the file referenced by argument
-.Ar ifd
+.Fa ifd
 to the file referenced by argument
-.Ar ofd .
+.Fa ofd .
 .Pp
 The argument
-.Ar ifd
+.Fa ifd
 should contain a file descriptor opened for reading, with its file
 offset at the beginning of the file.
 .Pp
 The argument
-.Ar ofd
+.Fa ofd
 should contain a file descriptor opened for writing.
 .Sh RETURN VALUES
 .Rv -std

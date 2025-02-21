@@ -24,12 +24,16 @@
  * SUCH DAMAGE.
  */
 
+/*@ELFTC-INCLUDE-SYS-CDEFS@*/
+
 #include <gelf.h>
 #include <libelf.h>
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: gelf_checksum.c 3174 2015-03-27 17:13:41Z emaste $");
+ELFTC_VCSID("$Id: gelf_checksum.c 4074 2025-01-07 15:34:21Z jkoshy $");
+
+/*@ELFTC-USE-DOWNSTREAM-VCSID@*/
 
 long
 elf32_checksum(Elf *e)
@@ -46,7 +50,8 @@ elf64_checksum(Elf *e)
 long
 gelf_checksum(Elf *e)
 {
-	int ec;
+	unsigned int ec;
+
 	if (e == NULL ||
 	    ((ec = e->e_class) != ELFCLASS32 && ec != ELFCLASS64)) {
 		LIBELF_SET_ERROR(ARGUMENT, 0);

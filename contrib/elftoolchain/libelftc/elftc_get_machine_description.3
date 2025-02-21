@@ -1,0 +1,120 @@
+.\" Copyright (c) 2025 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: elftc_get_machine_description.3 4110 2025-01-27 09:10:02Z jkoshy $
+.\"
+.Dd January 23, 2025
+.Dt ELFTC_GET_MACHINE_DESCRIPTION 3
+.Os
+.Sh NAME
+.Nm elftc_get_machine_description ,
+.Nm elftc_get_machine_name
+.Nd return descriptions and symbolic names for ELF machine architectures
+.Sh LIBRARY
+.Lb libelftc
+.Sh SYNOPSIS
+.In libelftc.h
+.Ft const char *
+.Fn elftc_get_machine_description "unsigned int e_machine"
+.Ft const char *
+.Fn elftc_get_machine_name "unsigned int e_machine"
+.Ft const char *
+.Fn elftc_get_relocation_type_name "unsigned int e_machine" "unsigned int r_type"
+.Sh DESCRIPTION
+Function
+.Fn elftc_get_machine_description
+returns a pointer to a string containing a human-readable description
+of the ELF machine architecture specified by argument
+.Ar e_machine .
+.Pp
+Function
+.Fn elftc_get_machine_name
+returns a pointer to a string containing the symbolic name of the
+ELF machine architecture specified by argument
+.Ar e_machine .
+.Pp
+Function
+.Fn elftc_get_relocation_type_name
+returns a pointer to string containing the symbolic name of relocation
+type specified by argument
+.Ar r_type .
+The value of argument
+.Ar r_type
+should be a relocation type defined for the ELF machine architecture
+specified by argument
+.Ar e_machine .
+.Pp
+For these functions, the value in argument
+.Ar e_machine
+should be one of
+.Dv EM_*
+constants defined by the ELF ABI.
+.Sh RETURN VALUES
+When successful these functions return valid pointers to
+.Dv NUL Ns - Ns
+terminated strings.
+.Pp
+In case of an error these functions return
+.Dv NULL .
+.Sh EXAMPLES
+To retrieve and print the symbolic name for the ELF machine
+identifier, use:
+.Bd -literal -offset indent
+#include <libelftc.h>
+
+const char *name = elftc_get_machine_name(e_machine);
+if (name)
+	(void) printf("ELF machine: %d, name %s\en", e_machine, name);
+else
+	(void) printf("Unknown EM_* value %d\en", e_machine);
+.Ed
+.Pp
+To retrieve and print the symbolic name for a relocation type number
+42 for the
+.Li EM_X86_64
+architecture, use:
+.Bd -literal -offset indent
+#include <libelftc.h>
+
+const char *name = elftc_get_relocation_type_name(EM_X86_64, 42U);
+if (name)
+	(void) printf("Relocation type: %s\en", name);
+else
+	(void) printf("Unknown relocation type %u for machine %u\en",
+	    42U, EM_X86_64);
+.Ed
+.Sh ERRORS
+These functions may fail with the following errors:
+.Bl -tag -width ".Bq Er EINVAL"
+.It Bq Er EINVAL
+The value in argument
+.Ar e_machine
+was not recognized.
+.It Bq Er EINVAL
+The value in argument
+.Ar r_type
+was not valid for the machine argument specified by argument
+.Ar e_machine .
+.El
+.Sh SEE ALSO
+.Xr elf 5

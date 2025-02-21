@@ -25,10 +25,8 @@
  */
 
 #include <sys/types.h>
-#include <sys/capsicum.h>
 #include <sys/stat.h>
 
-#include <capsicum_helpers.h>
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
@@ -46,12 +44,9 @@
 #include <libelftc.h>
 #include <gelf.h>
 
-#include <libcasper.h>
-#include <casper/cap_fileargs.h>
-
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: strings.c 3648 2018-11-22 23:26:43Z emaste $");
+ELFTC_VCSID("$Id: strings.c 3950 2021-09-08 20:04:20Z jkoshy $");
 
 enum radix_style {
 	RADIX_DECIMAL,
@@ -89,13 +84,13 @@ static struct option strings_longopts[] = {
 	{ NULL, 0, NULL, 0 }
 };
 
-int	getcharacter(FILE *, long *);
-int	handle_file(fileargs_t *fa, const char *);
-int	handle_elf(const char *, FILE *);
-int	handle_binary(const char *, FILE *, size_t);
-int	find_strings(const char *, FILE *, off_t, off_t);
+long	getcharacter(void);
+int	handle_file(const char *);
+int	handle_elf(const char *, int);
+int	handle_binary(const char *, int);
+int	find_strings(const char *, off_t, off_t);
 void	show_version(void);
-void	usage(void);
+void	usage(int);
 
 /*
  * strings(1) extracts text(contiguous printable characters)
@@ -104,8 +99,6 @@ void	usage(void);
 int
 main(int argc, char **argv)
 {
-	fileargs_t *fa;
-	cap_rights_t rights;
 	int ch, rc;
 
 	rc = 0;
@@ -139,8 +132,7 @@ main(int argc, char **argv)
 				encoding = ENCODING_32BIT_LITTLE;
 				encoding_size = 4;
 			} else
-				usage();
-			        /* NOTREACHED */
+				usage(EX_USAGE);
 			break;
 		case 'f':
 			show_filename = 1;
@@ -164,13 +156,12 @@ main(int argc, char **argv)
 			else if (*optarg == 'x')
 				radix = RADIX_HEX;
 			else
-				usage();
-			        /* NOTREACHED */
+				usage(EX_USAGE);
 			break;
 		case 'v':
 		case 'V':
 			show_version();
-			/* NOTREACHED */
+			break;
 		case '0':
 	        case '1':
 		case '2':
@@ -185,57 +176,45 @@ main(int argc, char **argv)
 			min_len += ch - '0';
 			break;
 		case 'h':
+			usage(EX_OK);
+			break;
 		case '?':
 		default:
-			usage();
-			/* NOTREACHED */
+			usage(EX_USAGE);
+			break;
 		}
 	}
 	argc -= optind;
 	argv += optind;
 
-	cap_rights_init(&rights, CAP_READ, CAP_SEEK, CAP_FSTAT, CAP_FCNTL, CAP_MMAP_R);
-	fa = fileargs_init(argc, argv, O_RDONLY, 0, &rights, FA_OPEN);
-	if (fa == NULL)
-		err(1, "Unable to initialize casper fileargs");
-
-	caph_cache_catpages();
-	if (caph_limit_stdio() < 0 || caph_enter_casper() < 0) {
-		fileargs_free(fa);
-		err(1, "Unable to enter capability mode");
-	}
-
 	if (min_len == 0)
 		min_len = 4;
 	if (*argv == NULL)
-		rc = find_strings("{standard input}", stdin, 0, 0);
+		rc = find_strings("{standard input}", 0, 0);
 	else while (*argv != NULL) {
-		if (handle_file(fa, *argv) != 0)
+		if (handle_file(*argv) != 0)
 			rc = 1;
 		argv++;
 	}
-
-	fileargs_free(fa);
-
 	return (rc);
 }
 
 int
-handle_file(fileargs_t *fa, const char *name)
+handle_file(const char *name)
 {
-	FILE *pfile;
-	int rt;
+	int fd, rt;
 
 	if (name == NULL)
 		return (1);
-	pfile = fileargs_fopen(fa, name, "rb");
-	if (pfile == NULL) {
+	if (freopen(name, "rb", stdin) == NULL) {
 		warnx("'%s': %s", name, strerror(errno));
 		return (1);
 	}
 
-	rt = handle_elf(name, pfile);
-	fclose(pfile);
+	fd = fileno(stdin);
+	if (fd < 0)
+		return (1);
+	rt = handle_elf(name, fd);
 	return (rt);
 }
 
@@ -244,11 +223,15 @@ handle_file(fileargs_t *fa, const char *name)
  * treated as a binary file. This would include text file, core dumps ...
  */
 int
-handle_binary(const char *name, FILE *pfile, size_t size)
+handle_binary(const char *name, int fd)
 {
+	struct stat buf;
 
-	(void)fseeko(pfile, 0, SEEK_SET);
-	return (find_strings(name, pfile, 0, size));
+	memset(&buf, 0, sizeof(buf));
+	(void)lseek(fd, 0, SEEK_SET);
+	if (!fstat(fd, &buf))
+		return (find_strings(name, 0, buf.st_size));
+	return (1);
 }
 
 /*
@@ -258,29 +241,24 @@ handle_binary(const char *name, FILE *pfile, size_t size)
  * different archs as flat binary files(has to overridden using -a).
  */
 int
-handle_elf(const char *name, FILE *pfile)
+handle_elf(const char *name, int fd)
 {
-	struct stat buf;
 	GElf_Ehdr elfhdr;
 	GElf_Shdr shdr;
 	Elf *elf;
 	Elf_Scn *scn;
-	int rc, fd;
+	int rc;
 
 	rc = 0;
-	fd = fileno(pfile);
-	if (fstat(fd, &buf) < 0)
-		return (1);
-
 	/* If entire file is chosen, treat it as a binary file */
 	if (entire_file)
-		return (handle_binary(name, pfile, buf.st_size));
+		return (handle_binary(name, fd));
 
 	(void)lseek(fd, 0, SEEK_SET);
 	elf = elf_begin(fd, ELF_C_READ, NULL);
 	if (elf_kind(elf) != ELF_K_ELF) {
 		(void)elf_end(elf);
-		return (handle_binary(name, pfile, buf.st_size));
+		return (handle_binary(name, fd));
 	}
 
 	if (gelf_getehdr(elf, &elfhdr) == NULL) {
@@ -291,7 +269,7 @@ handle_elf(const char *name, FILE *pfile)
 
 	if (elfhdr.e_shnum == 0 && elfhdr.e_type == ET_CORE) {
 		(void)elf_end(elf);
-		return (handle_binary(name, pfile, buf.st_size));
+		return (handle_binary(name, fd));
 	} else {
 		scn = NULL;
 		while ((scn = elf_nextscn(elf, scn)) != NULL) {
@@ -299,7 +277,7 @@ handle_elf(const char *name, FILE *pfile)
 				continue;
 			if (shdr.sh_type != SHT_NOBITS &&
 			    (shdr.sh_flags & SHF_ALLOC) != 0) {
-				rc = find_strings(name, pfile, shdr.sh_offset,
+				rc = find_strings(name, shdr.sh_offset,
 				    shdr.sh_size);
 			}
 		}
@@ -312,52 +290,51 @@ handle_elf(const char *name, FILE *pfile)
  * Retrieves a character from input stream based on the encoding
  * type requested.
  */
-int
-getcharacter(FILE *pfile, long *rt)
+long
+getcharacter(void)
 {
-	int i, c;
-	char buf[4];
+	long rt;
+	int i;
+	char buf[4], c;
 
+	rt = EOF;
 	for(i = 0; i < encoding_size; i++) {
-		c = getc(pfile);
-		if (c == EOF)
-			return (-1);
+		c = getc(stdin);
+		if (feof(stdin))
+			return (EOF);
 		buf[i] = c;
 	}
 
 	switch (encoding) {
 	case ENCODING_7BIT:
 	case ENCODING_8BIT:
-		*rt = buf[0];
+		rt = buf[0];
 		break;
 	case ENCODING_16BIT_BIG:
-		*rt = (buf[0] << 8) | buf[1];
+		rt = (buf[0] << 8) | buf[1];
 		break;
 	case ENCODING_16BIT_LITTLE:
-		*rt = buf[0] | (buf[1] << 8);
-		break;
+		 rt = buf[0] | (buf[1] << 8);
+		 break;
 	case ENCODING_32BIT_BIG:
-		*rt = ((long) buf[0] << 24) | ((long) buf[1] << 16) |
+		rt = ((long) buf[0] << 24) | ((long) buf[1] << 16) |
 		    ((long) buf[2] << 8) | buf[3];
 		break;
 	case ENCODING_32BIT_LITTLE:
-		*rt = buf[0] | ((long) buf[1] << 8) | ((long) buf[2] << 16) |
+		rt = buf[0] | ((long) buf[1] << 8) | ((long) buf[2] << 16) |
 		    ((long) buf[3] << 24);
 		break;
-	default:
-		return (-1);
 	}
-
-	return (0);
+	return (rt);
 }
 
 /*
- * Input stream is read until the end of file is reached or until
+ * Input stream stdin is read until the end of file is reached or until
  * the section size is reached in case of ELF files. Contiguous
  * characters of >= min_size(default 4) will be displayed.
  */
 int
-find_strings(const char *name, FILE *pfile, off_t offset, off_t size)
+find_strings(const char *name, off_t offset, off_t size)
 {
 	off_t cur_off, start_off;
 	char *obuf;
@@ -370,7 +347,7 @@ find_strings(const char *name, FILE *pfile, off_t offset, off_t size)
 		return (1);
 	}
 
-	(void)fseeko(pfile, offset, SEEK_SET);
+	(void)fseeko(stdin, offset, SEEK_SET);
 	cur_off = offset;
 	start_off = 0;
 	for (;;) {
@@ -379,7 +356,8 @@ find_strings(const char *name, FILE *pfile, off_t offset, off_t size)
 		start_off = cur_off;
 		memset(obuf, 0, min_len + 1);
 		for(i = 0; i < min_len; i++) {
-			if (getcharacter(pfile, &c) < 0)
+			c = getcharacter();
+			if (c == EOF && feof(stdin))
 				goto _exit1;
 			if (PRINTABLE(c)) {
 				obuf[i] = c;
@@ -421,15 +399,14 @@ find_strings(const char *name, FILE *pfile, off_t offset, off_t size)
 				if ((offset + size) &&
 				    (cur_off >= offset + size))
 					break;
-				if (getcharacter(pfile, &c) < 0)
-					break;
+				c = getcharacter();
 				cur_off += encoding_size;
 				if (encoding == ENCODING_8BIT &&
 				    (uint8_t)c > 127) {
 					putchar(c);
 					continue;
 				}
-				if (!PRINTABLE(c))
+				if (!PRINTABLE(c) || c == EOF)
 					break;
 				putchar(c);
 			}
@@ -455,11 +432,11 @@ Usage: %s [options] [file...]\n\
   -v     | --version           Print a version identifier and exit.\n"
 
 void
-usage(void)
+usage(int exit_code)
 {
 
 	fprintf(stderr, USAGE_MESSAGE, ELFTC_GETPROGNAME());
-	exit(EXIT_FAILURE);
+	exit(exit_code);
 }
 
 void

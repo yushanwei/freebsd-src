@@ -24,6 +24,8 @@
  * SUCH DAMAGE.
  */
 
+/*@ELFTC-INCLUDE-SYS-CDEFS@*/
+
 #include <assert.h>
 #include <errno.h>
 #include <libelf.h>
@@ -32,14 +34,16 @@
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: elf_data.c 3732 2019-04-22 11:08:38Z jkoshy $");
+ELFTC_VCSID("$Id: elf_data.c 4074 2025-01-07 15:34:21Z jkoshy $");
+
+/*@ELFTC-USE-DOWNSTREAM-VCSID@*/
 
 Elf_Data *
 elf_getdata(Elf_Scn *s, Elf_Data *ed)
 {
 	Elf *e;
-	unsigned int sh_type;
-	int elfclass, elftype;
+	unsigned int elfclass, sh_type;
+	int elftype;
 	size_t count, fsz, msz;
 	struct _Libelf_Data *d;
 	uint64_t sh_align, sh_offset, sh_size, raw_size;
@@ -215,8 +219,8 @@ Elf_Data *
 elf_rawdata(Elf_Scn *s, Elf_Data *ed)
 {
 	Elf *e;
-	int elf_class;
 	uint32_t sh_type;
+	unsigned int elf_class;
 	struct _Libelf_Data *d;
 	uint64_t sh_align, sh_offset, sh_size, raw_size;
 

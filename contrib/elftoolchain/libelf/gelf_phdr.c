@@ -24,6 +24,8 @@
  * SUCH DAMAGE.
  */
 
+/*@ELFTC-INCLUDE-SYS-CDEFS@*/
+
 #include <gelf.h>
 #include <libelf.h>
 #include <limits.h>
@@ -31,7 +33,9 @@
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: gelf_phdr.c 3576 2017-09-14 02:15:29Z emaste $");
+ELFTC_VCSID("$Id: gelf_phdr.c 4074 2025-01-07 15:34:21Z jkoshy $");
+
+/*@ELFTC-USE-DOWNSTREAM-VCSID@*/
 
 Elf32_Phdr *
 elf32_getphdr(Elf *e)
@@ -48,7 +52,7 @@ elf64_getphdr(Elf *e)
 GElf_Phdr *
 gelf_getphdr(Elf *e, int index, GElf_Phdr *d)
 {
-	int ec;
+	unsigned int ec;
 	Elf32_Ehdr *eh32;
 	Elf64_Ehdr *eh64;
 	Elf32_Phdr *ep32;
@@ -122,9 +126,9 @@ gelf_newphdr(Elf *e, size_t count)
 int
 gelf_update_phdr(Elf *e, int ndx, GElf_Phdr *s)
 {
-	int ec;
-	size_t phnum;
 	void *ehdr;
+	size_t phnum;
+	unsigned int ec;
 	Elf32_Phdr *ph32;
 	Elf64_Phdr *ph64;
 

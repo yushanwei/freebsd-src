@@ -69,10 +69,11 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <sysexits.h>
 
 #include "ar.h"
 
-ELFTC_VCSID("$Id: ar.c 3629 2018-09-30 19:26:28Z jkoshy $");
+ELFTC_VCSID("$Id: ar.c 3950 2021-09-08 20:04:20Z jkoshy $");
 
 enum options
 {
@@ -87,8 +88,8 @@ static struct option longopts[] =
 	{NULL, 0, NULL, 0}
 };
 
-static void	bsdar_usage(void);
-static void	ranlib_usage(void);
+static void	bsdar_usage(int);
+static void	ranlib_usage(int);
 static void	set_mode(struct bsdar *bsdar, char opt);
 static void	only_mode(struct bsdar *bsdar, const char *opt,
 		    const char *valid_modes);
@@ -140,16 +141,18 @@ main(int argc, char **argv)
 				bsdar_version();
 				break;
 			case OPTION_HELP:
-				ranlib_usage();
+				ranlib_usage(EX_OK);
+				break;
 			default:
-				ranlib_usage();
+				ranlib_usage(EX_USAGE);
+				break;
 			}
 		}
 		argv += optind;
 		argc -= optind;
 
 		if (*argv == NULL)
-			ranlib_usage();
+			ranlib_usage(EX_USAGE);
 
 		bsdar->options |= AR_S;
 		while ((bsdar->filename = *argv++) != NULL)
@@ -158,7 +161,7 @@ main(int argc, char **argv)
 		exit(exitcode);
 	} else {
 		if (argc < 2)
-			bsdar_usage();
+			bsdar_usage(EX_USAGE);
 
 		/*
 		 * Tack on a leading '-', for old-style usage.
@@ -202,7 +205,7 @@ main(int argc, char **argv)
 			else if (!strcasecmp(optarg, "bsd"))
 				bsdar->options |= AR_BSD;
 			else
-				bsdar_usage();
+				bsdar_usage(EX_USAGE);
 			break;
 		case 'f':
 		case 'T':
@@ -260,9 +263,11 @@ main(int argc, char **argv)
 			/* ignored */
 			break;
 		case OPTION_HELP:
-			bsdar_usage();
+			bsdar_usage(EX_OK);
+			break;
 		default:
-			bsdar_usage();
+			bsdar_usage(EX_USAGE);
+			break;
 		}
 	}
 
@@ -277,7 +282,7 @@ main(int argc, char **argv)
 	argc -= optind;
 
 	if (*argv == NULL && bsdar->mode != 'M')
-		bsdar_usage();
+		bsdar_usage(EX_USAGE);
 
 	if (bsdar->options & AR_A && bsdar->options & AR_B)
 		bsdar_errc(bsdar, 0,
@@ -325,7 +330,7 @@ main(int argc, char **argv)
 	}
 
 	if ((bsdar->filename = *argv) == NULL)
-		bsdar_usage();
+		bsdar_usage(EX_USAGE);
 
 	bsdar->argc = --argc;
 	bsdar->argv = ++argv;
@@ -346,7 +351,7 @@ main(int argc, char **argv)
 		exitcode = ar_read_archive(bsdar, bsdar->mode);
 		break;
 	default:
-		bsdar_usage();
+		bsdar_usage(EX_USAGE);
 		/* NOTREACHED */
 	}
 
@@ -414,10 +419,10 @@ Usage: %s <command> [options] archive file...\n\
   -U            Use original metadata for archive members.\n"
 
 static void
-bsdar_usage(void)
+bsdar_usage(int exit_code)
 {
 	(void) fprintf(stderr, AR_USAGE_MESSAGE, ELFTC_GETPROGNAME());
-	exit(EXIT_FAILURE);
+	exit(exit_code);
 }
 
 #define	RANLIB_USAGE_MESSAGE	"\
@@ -430,10 +435,10 @@ Usage: %s [options] archive...\n\
   -V              Print a version identifier and exit.\n"
 
 static void
-ranlib_usage(void)
+ranlib_usage(int exit_code)
 {
 	(void)fprintf(stderr, RANLIB_USAGE_MESSAGE, ELFTC_GETPROGNAME());
-	exit(EXIT_FAILURE);
+	exit(exit_code);
 }
 
 static void

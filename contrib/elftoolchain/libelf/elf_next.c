@@ -24,13 +24,17 @@
  * SUCH DAMAGE.
  */
 
+/*@ELFTC-INCLUDE-SYS-CDEFS@*/
+
 #include <ar.h>
 #include <assert.h>
 #include <libelf.h>
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: elf_next.c 3710 2019-03-12 09:42:35Z jkoshy $");
+ELFTC_VCSID("$Id: elf_next.c 3977 2022-05-01 06:45:34Z jkoshy $");
+
+/*@ELFTC-USE-DOWNSTREAM-VCSID@*/
 
 Elf_Cmd
 elf_next(Elf *e)

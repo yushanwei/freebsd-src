@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2006,2008 Joseph Koshy
+ * Copyright (c) 2006,2008,2020 Joseph Koshy
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,21 +24,25 @@
  * SUCH DAMAGE.
  */
 
+/*@ELFTC-INCLUDE-SYS-CDEFS@*/
+
 #include <assert.h>
 #include <gelf.h>
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: gelf_symshndx.c 3732 2019-04-22 11:08:38Z jkoshy $");
+ELFTC_VCSID("$Id: gelf_symshndx.c 4074 2025-01-07 15:34:21Z jkoshy $");
+
+/*@ELFTC-USE-DOWNSTREAM-VCSID@*/
 
 GElf_Sym *
 gelf_getsymshndx(Elf_Data *d, Elf_Data *id, int ndx, GElf_Sym *dst,
     Elf32_Word *shindex)
 {
-	int ec;
 	Elf *e;
 	size_t msz;
 	Elf_Scn *scn;
+	unsigned int ec;
 	uint32_t sh_type;
 	struct _Libelf_Data *ld, *lid;
 
@@ -48,9 +52,16 @@ gelf_getsymshndx(Elf_Data *d, Elf_Data *id, int ndx, GElf_Sym *dst,
 	if (gelf_getsym(d, ndx, dst) == 0)
 		return (NULL);
 
-	if (lid == NULL || (scn = lid->d_scn) == NULL ||
-	    (e = scn->s_elf) == NULL || (e != ld->d_scn->s_elf) ||
-	    shindex == NULL) {
+	if (shindex == NULL)
+		return (dst);
+
+	if (lid == NULL) {
+		*shindex = 0;
+		return (dst);
+	}
+
+	if ((scn = lid->d_scn) == NULL ||
+	    (e = scn->s_elf) == NULL || (e != ld->d_scn->s_elf)) {
 		LIBELF_SET_ERROR(ARGUMENT, 0);
 		return (NULL);
 	}
@@ -88,10 +99,10 @@ int
 gelf_update_symshndx(Elf_Data *d, Elf_Data *id, int ndx, GElf_Sym *gs,
     Elf32_Word xindex)
 {
-	int ec;
 	Elf *e;
 	size_t msz;
 	Elf_Scn *scn;
+	unsigned int ec;
 	uint32_t sh_type;
 	struct _Libelf_Data *ld, *lid;
 

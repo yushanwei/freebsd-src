@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2007 John Birrell (jb@freebsd.org)
- * Copyright (c) 2009-2011,2014 Kai Wang
+ * Copyright (c) 2009-2011,2014,2023 Kai Wang
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: libdwarf.h 3578 2017-09-14 02:21:28Z emaste $
+ * $Id: libdwarf.h 4104 2025-01-25 18:05:14Z jkoshy $
  */
 
 #ifndef	_LIBDWARF_H_
@@ -125,6 +125,10 @@ typedef struct {
 typedef struct {
 	char signature[8];
 } Dwarf_Sig8;
+
+typedef struct {
+	unsigned char fd_data[16];
+} Dwarf_Form_Data16;
 
 typedef struct {
 	Dwarf_Unsigned	bl_len;
@@ -335,7 +339,9 @@ enum {
 	DW_DLE_ARANGE_OFFSET_BAD,	/* Invalid arange offset. */
 	DW_DLE_DEBUG_MACRO_INCONSISTENT,/* Invalid macinfo data. */
 	DW_DLE_ELF_SECT_ERR,		/* Application callback failed. */
-	DW_DLE_COMPRESSION,		/* Section decompression error. */
+	DW_DLE_DIR_COUNT_BAD,		/* Invalid directory count. */
+	DW_DLE_FILE_COUNT_BAD,		/* Invalid filename count. */
+	DW_DLE_LNCT_DESC_BAD,		/* Invalid LNCT descriptor. */
 	DW_DLE_NUM			/* Max error number. */
 };
 
@@ -442,6 +448,7 @@ enum Dwarf_ISA {
 	DW_ISA_X86_64,
 	DW_ISA_AARCH64,
 	DW_ISA_RISCV,
+	DW_ISA_LOONGARCH,
 	DW_ISA_MAX
 };
 
@@ -763,6 +770,10 @@ int		dwarf_next_cu_header_c(Dwarf_Debug, Dwarf_Bool,
 		    Dwarf_Unsigned *, Dwarf_Half *, Dwarf_Off *, Dwarf_Half *,
 		    Dwarf_Half *, Dwarf_Half *, Dwarf_Sig8 *, Dwarf_Unsigned *,
 		    Dwarf_Unsigned *, Dwarf_Error *);
+int		dwarf_next_cu_header_d(Dwarf_Debug, Dwarf_Bool,
+		    Dwarf_Unsigned *, Dwarf_Half *, Dwarf_Off *, Dwarf_Half *,
+		    Dwarf_Half *, Dwarf_Half *, Dwarf_Sig8 *, Dwarf_Unsigned *,
+		    Dwarf_Unsigned *, Dwarf_Half *, Dwarf_Error *);
 int		dwarf_next_types_section(Dwarf_Debug, Dwarf_Error *);
 int		dwarf_object_finish(Dwarf_Debug, Dwarf_Error *);
 int		dwarf_object_init(Dwarf_Obj_Access_Interface *, Dwarf_Handler,

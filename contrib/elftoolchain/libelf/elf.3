@@ -21,9 +21,9 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: elf.3 3743 2019-06-12 19:36:30Z jkoshy $
+.\" $Id: elf.3 3927 2021-03-07 17:22:22Z jkoshy $
 .\"
-.Dd June 12, 2019
+.Dd March 7, 2021
 .Dt ELF 3
 .Os
 .Sh NAME
@@ -576,7 +576,7 @@ set by function
 .Ss Error Handling
 In case an error is encountered, these library functions set an
 internal error number and signal the presence of the error by
-returning an special return value.
+returning a special return value.
 The application can check the
 current error number by calling
 .Xr elf_errno 3 .
@@ -620,7 +620,9 @@ The original
 API was developed for
 .At V .
 The current implementation of the API appeared in
-.Fx 7.0 .
+.Fx 7.0
+and
+.Nx 6.0 .
 .Sh AUTHORS
 The ELF library was written by
 .An Joseph Koshy Aq Mt jkoshy@FreeBSD.org .

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2015 Kai Wang
+ * Copyright (c) 2009-2018,2023 Kai Wang
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,10 +26,8 @@
 
 #include <sys/param.h>
 #include <sys/queue.h>
-
 #include <ar.h>
 #include <assert.h>
-#include <capsicum_helpers.h>
 #include <ctype.h>
 #include <dwarf.h>
 #include <err.h>
@@ -40,30 +38,17 @@
 #include <libelftc.h>
 #include <libgen.h>
 #include <stdarg.h>
-#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <time.h>
 #include <unistd.h>
-#include <zlib.h>
-
-#include <libcasper.h>
-#include <casper/cap_fileargs.h>
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: readelf.c 3769 2019-06-29 15:15:02Z emaste $");
-
-/* Backwards compatability for older FreeBSD releases. */
-#ifndef	STB_GNU_UNIQUE
-#define	STB_GNU_UNIQUE 10
-#endif
-#ifndef	STT_SPARC_REGISTER
-#define	STT_SPARC_REGISTER 13
-#endif
-
+ELFTC_VCSID("$Id: readelf.c 4189 2025-02-14 20:53:41Z jkoshy $");
 
 /*
  * readelf(1) options.
@@ -89,7 +74,6 @@ ELFTC_VCSID("$Id: readelf.c 3769 2019-06-29 15:15:02Z emaste $");
 #define	RE_WW	0x00040000
 #define	RE_W	0x00080000
 #define	RE_X	0x00100000
-#define	RE_Z	0x00200000
 
 /*
  * dwarf dump options.
@@ -114,6 +98,12 @@ ELFTC_VCSID("$Id: readelf.c 3769 2019-06-29 15:15:02Z emaste $");
  * readelf(1) run control flags.
  */
 #define	DISPLAY_FILENAME	0x0001
+
+/* Space for printing a prefix, a 4 byte value, and a trailing NUL. */
+#define REGISTER_NAME_BUFFER_SIZE	16
+
+/* Space for printing an 8 byte value and a trailing NUL. */
+#define DWARF_ADDR_BUFFER_SIZE		24
 
 /*
  * Internal data structure for sections.
@@ -192,7 +182,6 @@ static struct option longopts[] = {
 	{"arch-specific", no_argument, NULL, 'A'},
 	{"archive-index", no_argument, NULL, 'c'},
 	{"debug-dump", optional_argument, NULL, OPTION_DEBUG_DUMP},
-	{"decompress", no_argument, 0, 'z'},
 	{"dynamic", no_argument, NULL, 'd'},
 	{"file-header", no_argument, NULL, 'h'},
 	{"full-section-name", no_argument, NULL, 'N'},
@@ -229,24 +218,14 @@ struct flag_desc {
 	const char *desc;
 };
 
-struct flag_desc_list {
-	uint32_t type;
-	const char *desc_str;
-	struct flag_desc *desc;
-};
-
 struct mips_option {
 	uint64_t flag;
 	const char *desc;
 };
 
-struct loc_at {
-	Dwarf_Attribute la_at;
-	Dwarf_Unsigned la_off;
-	Dwarf_Unsigned la_lowpc;
-	Dwarf_Half la_cu_psize;
-	Dwarf_Half la_cu_osize;
-	Dwarf_Half la_cu_ver;
+struct lnct {
+	unsigned type;
+	unsigned form;
 };
 
 static void add_dumpop(struct readelf *re, size_t si, const char *sn, int op,
@@ -291,7 +270,7 @@ static const char *elf_osabi(unsigned int abi);
 static const char *elf_type(unsigned int type);
 static const char *elf_ver(unsigned int ver);
 static const char *dt_type(unsigned int mach, unsigned int dtype);
-static bool dump_ar(struct readelf *re, int);
+static void dump_ar(struct readelf *re, int);
 static void dump_arm_attributes(struct readelf *re, uint8_t *p, uint8_t *pe);
 static void dump_attributes(struct readelf *re);
 static uint8_t *dump_compatibility_tag(uint8_t *p, uint8_t *pe);
@@ -321,7 +300,7 @@ static void dump_dwarf_ranges_foreach(struct readelf *re, Dwarf_Die die,
     Dwarf_Addr base);
 static void dump_dwarf_str(struct readelf *re);
 static void dump_eflags(struct readelf *re, uint64_t e_flags);
-static bool dump_elf(struct readelf *re);
+static void dump_elf(struct readelf *re);
 static void dump_flags(struct flag_desc *fd, uint64_t flags);
 static void dump_dyn_val(struct readelf *re, GElf_Dyn *dyn, uint32_t stab);
 static void dump_dynamic(struct readelf *re);
@@ -337,13 +316,11 @@ static void dump_mips_specific_info(struct readelf *re);
 static void dump_notes(struct readelf *re);
 static void dump_notes_content(struct readelf *re, const char *buf, size_t sz,
     off_t off);
-static void dump_notes_data(struct readelf *re, const char *name,
-    uint32_t type, const char *buf, size_t sz);
+static void dump_notes_data(const char *name, uint32_t type, const char *buf,
+    size_t sz);
 static void dump_svr4_hash(struct section *s);
 static void dump_svr4_hash64(struct readelf *re, struct section *s);
 static void dump_gnu_hash(struct readelf *re, struct section *s);
-static void dump_gnu_property_type_0(struct readelf *re, const char *buf,
-    size_t sz);
 static void dump_hash(struct readelf *re);
 static void dump_phdr(struct readelf *re);
 static void dump_ppc_attributes(uint8_t *p, uint8_t *pe);
@@ -367,15 +344,13 @@ static const char *get_string(struct readelf *re, int strtab, size_t off);
 static const char *get_symbol_name(struct readelf *re, int symtab, int i);
 static uint64_t get_symbol_value(struct readelf *re, int symtab, int i);
 static void load_sections(struct readelf *re);
-static int loc_at_comparator(const void *la1, const void *la2);
 static const char *mips_abi_fp(uint64_t fp);
 static const char *note_type(const char *note_name, unsigned int et,
     unsigned int nt);
 static const char *note_type_freebsd(unsigned int nt);
 static const char *note_type_freebsd_core(unsigned int nt);
-static const char *note_type_go(unsigned int nt);
-static const char *note_type_gnu(unsigned int nt);
 static const char *note_type_linux_core(unsigned int nt);
+static const char *note_type_gnu(unsigned int nt);
 static const char *note_type_netbsd(unsigned int nt);
 static const char *note_type_openbsd(unsigned int nt);
 static const char *note_type_unknown(unsigned int nt);
@@ -384,11 +359,10 @@ static const char *option_kind(uint8_t kind);
 static const char *phdr_type(unsigned int mach, unsigned int ptype);
 static const char *ppc_abi_fp(uint64_t fp);
 static const char *ppc_abi_vector(uint64_t vec);
-static void readelf_usage(int status);
+static void readelf_usage(int exit_code);
 static void readelf_version(void);
 static void search_loclist_at(struct readelf *re, Dwarf_Die die,
-    Dwarf_Unsigned lowpc, struct loc_at **la_list,
-    size_t *la_list_len, size_t *la_list_cap);
+    Dwarf_Unsigned lowpc);
 static void search_ver(struct readelf *re);
 static const char *section_type(unsigned int mach, unsigned int stype);
 static void set_cu_context(struct readelf *re, Dwarf_Half psize,
@@ -427,6 +401,12 @@ static struct eflags_desc arm_eflags_desc[] = {
 	{EF_ARM_SOFT_FLOAT, "software FP"},
 	{EF_ARM_VFP_FLOAT, "VFP"},
 	{EF_ARM_MAVERICK_FLOAT, "Maverick FP"},
+	{0, NULL}
+};
+
+static struct eflags_desc loongarch_eflags_desc[] = {
+	{EF_LOONGARCH_OBJABI_V0, "OBJ-v0"},
+	{EF_LOONGARCH_OBJABI_V1, "OBJ-v1"},
 	{0, NULL}
 };
 
@@ -485,7 +465,10 @@ elf_osabi(unsigned int abi)
 	case ELFOSABI_OPENBSD: return "OpenBSD";
 	case ELFOSABI_OPENVMS: return "OpenVMS";
 	case ELFOSABI_NSK: return "NSK";
+	case ELFOSABI_AROS: return "AROS";
+	case ELFOSABI_FENIXOS: return "FenixOS";
 	case ELFOSABI_CLOUDABI: return "CloudABI";
+	case ELFOSABI_OPENVOS: return "OpenVOS";
 	case ELFOSABI_ARM_AEABI: return "ARM EABI";
 	case ELFOSABI_ARM: return "ARM";
 	case ELFOSABI_STANDALONE: return "StandAlone";
@@ -493,111 +476,19 @@ elf_osabi(unsigned int abi)
 		snprintf(s_abi, sizeof(s_abi), "<unknown: %#x>", abi);
 		return (s_abi);
 	}
-};
+}
 
 static const char *
 elf_machine(unsigned int mach)
 {
 	static char s_mach[32];
+	const char *machine_name;
 
-	switch (mach) {
-	case EM_NONE: return "Unknown machine";
-	case EM_M32: return "AT&T WE32100";
-	case EM_SPARC: return "Sun SPARC";
-	case EM_386: return "Intel i386";
-	case EM_68K: return "Motorola 68000";
-	case EM_IAMCU: return "Intel MCU";
-	case EM_88K: return "Motorola 88000";
-	case EM_860: return "Intel i860";
-	case EM_MIPS: return "MIPS R3000 Big-Endian only";
-	case EM_S370: return "IBM System/370";
-	case EM_MIPS_RS3_LE: return "MIPS R3000 Little-Endian";
-	case EM_PARISC: return "HP PA-RISC";
-	case EM_VPP500: return "Fujitsu VPP500";
-	case EM_SPARC32PLUS: return "SPARC v8plus";
-	case EM_960: return "Intel 80960";
-	case EM_PPC: return "PowerPC 32-bit";
-	case EM_PPC64: return "PowerPC 64-bit";
-	case EM_S390: return "IBM System/390";
-	case EM_V800: return "NEC V800";
-	case EM_FR20: return "Fujitsu FR20";
-	case EM_RH32: return "TRW RH-32";
-	case EM_RCE: return "Motorola RCE";
-	case EM_ARM: return "ARM";
-	case EM_SH: return "Hitachi SH";
-	case EM_SPARCV9: return "SPARC v9 64-bit";
-	case EM_TRICORE: return "Siemens TriCore embedded processor";
-	case EM_ARC: return "Argonaut RISC Core";
-	case EM_H8_300: return "Hitachi H8/300";
-	case EM_H8_300H: return "Hitachi H8/300H";
-	case EM_H8S: return "Hitachi H8S";
-	case EM_H8_500: return "Hitachi H8/500";
-	case EM_IA_64: return "Intel IA-64 Processor";
-	case EM_MIPS_X: return "Stanford MIPS-X";
-	case EM_COLDFIRE: return "Motorola ColdFire";
-	case EM_68HC12: return "Motorola M68HC12";
-	case EM_MMA: return "Fujitsu MMA";
-	case EM_PCP: return "Siemens PCP";
-	case EM_NCPU: return "Sony nCPU";
-	case EM_NDR1: return "Denso NDR1 microprocessor";
-	case EM_STARCORE: return "Motorola Star*Core processor";
-	case EM_ME16: return "Toyota ME16 processor";
-	case EM_ST100: return "STMicroelectronics ST100 processor";
-	case EM_TINYJ: return "Advanced Logic Corp. TinyJ processor";
-	case EM_X86_64: return "Advanced Micro Devices x86-64";
-	case EM_PDSP: return "Sony DSP Processor";
-	case EM_FX66: return "Siemens FX66 microcontroller";
-	case EM_ST9PLUS: return "STMicroelectronics ST9+ 8/16 microcontroller";
-	case EM_ST7: return "STmicroelectronics ST7 8-bit microcontroller";
-	case EM_68HC16: return "Motorola MC68HC16 microcontroller";
-	case EM_68HC11: return "Motorola MC68HC11 microcontroller";
-	case EM_68HC08: return "Motorola MC68HC08 microcontroller";
-	case EM_68HC05: return "Motorola MC68HC05 microcontroller";
-	case EM_SVX: return "Silicon Graphics SVx";
-	case EM_ST19: return "STMicroelectronics ST19 8-bit mc";
-	case EM_VAX: return "Digital VAX";
-	case EM_CRIS: return "Axis Communications 32-bit embedded processor";
-	case EM_JAVELIN: return "Infineon Tech. 32bit embedded processor";
-	case EM_FIREPATH: return "Element 14 64-bit DSP Processor";
-	case EM_ZSP: return "LSI Logic 16-bit DSP Processor";
-	case EM_MMIX: return "Donald Knuth's educational 64-bit proc";
-	case EM_HUANY: return "Harvard University MI object files";
-	case EM_PRISM: return "SiTera Prism";
-	case EM_AVR: return "Atmel AVR 8-bit microcontroller";
-	case EM_FR30: return "Fujitsu FR30";
-	case EM_D10V: return "Mitsubishi D10V";
-	case EM_D30V: return "Mitsubishi D30V";
-	case EM_V850: return "NEC v850";
-	case EM_M32R: return "Mitsubishi M32R";
-	case EM_MN10300: return "Matsushita MN10300";
-	case EM_MN10200: return "Matsushita MN10200";
-	case EM_PJ: return "picoJava";
-	case EM_OPENRISC: return "OpenRISC 32-bit embedded processor";
-	case EM_ARC_A5: return "ARC Cores Tangent-A5";
-	case EM_XTENSA: return "Tensilica Xtensa Architecture";
-	case EM_VIDEOCORE: return "Alphamosaic VideoCore processor";
-	case EM_TMM_GPP: return "Thompson Multimedia General Purpose Processor";
-	case EM_NS32K: return "National Semiconductor 32000 series";
-	case EM_TPC: return "Tenor Network TPC processor";
-	case EM_SNP1K: return "Trebia SNP 1000 processor";
-	case EM_ST200: return "STMicroelectronics ST200 microcontroller";
-	case EM_IP2K: return "Ubicom IP2xxx microcontroller family";
-	case EM_MAX: return "MAX Processor";
-	case EM_CR: return "National Semiconductor CompactRISC microprocessor";
-	case EM_F2MC16: return "Fujitsu F2MC16";
-	case EM_MSP430: return "TI embedded microcontroller msp430";
-	case EM_BLACKFIN: return "Analog Devices Blackfin (DSP) processor";
-	case EM_SE_C33: return "S1C33 Family of Seiko Epson processors";
-	case EM_SEP: return "Sharp embedded microprocessor";
-	case EM_ARCA: return "Arca RISC Microprocessor";
-	case EM_UNICORE: return "Microprocessor series from PKU-Unity Ltd";
-	case EM_AARCH64: return "AArch64";
-	case EM_RISCV: return "RISC-V";
-	default:
-		snprintf(s_mach, sizeof(s_mach), "<unknown: %#x>", mach);
-		return (s_mach);
-	}
+	if ((machine_name = elftc_get_machine_description(mach)) != NULL)
+		return (machine_name);
 
+	(void) snprintf(s_mach, sizeof(s_mach), "<unknown: %#x>", mach);
+	return (s_mach);
 }
 
 static const char *
@@ -1152,8 +1043,6 @@ note_type(const char *name, unsigned int et, unsigned int nt)
 			return note_type_freebsd(nt);
 	else if (strcmp(name, "GNU") == 0 && et != ET_CORE)
 		return note_type_gnu(nt);
-	else if (strcmp(name, "Go") == 0 && et != ET_CORE)
-		return note_type_go(nt);
 	else if (strcmp(name, "NetBSD") == 0 && et != ET_CORE)
 		return note_type_netbsd(nt);
 	else if (strcmp(name, "OpenBSD") == 0 && et != ET_CORE)
@@ -1195,11 +1084,8 @@ note_type_freebsd_core(unsigned int nt)
 	case 17: return "NT_PTLWPINFO";
 	case 0x100: return "NT_PPC_VMX (ppc Altivec registers)";
 	case 0x102: return "NT_PPC_VSX (ppc VSX registers)";
-	case 0x200: return "NT_X86_SEGBASES (x86 segment base registers)";
 	case 0x202: return "NT_X86_XSTATE (x86 XSAVE extended state)";
 	case 0x400: return "NT_ARM_VFP (arm VFP registers)";
-	case 0x401: return "NT_ARM_TLS (arm TLS register)";
-	case 0x406: return "NT_ARM_ADDR_MASK (arm address mask)";
 	default: return (note_type_unknown(nt));
 	}
 }
@@ -1229,16 +1115,6 @@ note_type_linux_core(unsigned int nt)
 	case 0x304: return "NT_S390_CTRS (s390 control registers)";
 	case 0x305: return "NT_S390_PREFIX (s390 prefix register)";
 	case 0x400: return "NT_ARM_VFP (arm VFP registers)";
-	case 0x401: return "NT_ARM_TLS (arm TLS register)";
-	case 0x402: return "NT_ARM_HW_BREAK (arm hardware breakpoint registers)";
-	case 0x403: return "NT_ARM_HW_WATCH (arm hardware watchpoint registers)";
-	case 0x404: return "NT_ARM_SYSTEM_CALL (arm system call number)";
-	case 0x405: return "NT_ARM_SVE (arm scalable vector extension registers)";
-	case 0x406: return "NT_ARM_PAC_MASK (arm pointer authentication code mask)";
-	case 0x407: return "NT_ARM_PACA_KEYS (arm pointer authentication address keys)";
-	case 0x408: return "NT_ARM_PACG_KEYS (arm pointer authentication generic keys)";
-	case 0x409: return "NT_ARM_TAGGED_ADDR_CTRL (arm64 tagged address control)";
-	case 0x40a: return "NT_ARM_PAC_ENABLED_KEYS (arm64 ptr auth enabled keys)";
 	case 0x46494c45UL: return "NT_FILE (mapped files)";
 	case 0x46E62B7FUL: return "NT_PRXFPREG (Linux user_xfpregs structure)";
 	case 0x53494749UL: return "NT_SIGINFO (siginfo_t data)";
@@ -1255,15 +1131,6 @@ note_type_gnu(unsigned int nt)
 	case 3: return "NT_GNU_BUILD_ID (Build id set by ld(1))";
 	case 4: return "NT_GNU_GOLD_VERSION (GNU gold version)";
 	case 5: return "NT_GNU_PROPERTY_TYPE_0";
-	default: return (note_type_unknown(nt));
-	}
-}
-
-static const char *
-note_type_go(unsigned int nt)
-{
-	switch (nt) {
-	case 4: return "elfGoBuildIDTag";
 	default: return (note_type_unknown(nt));
 	}
 }
@@ -1318,7 +1185,6 @@ note_type_xen(unsigned int nt)
 	case 15: return "XEN_ELFNOTE_INIT_P2M";
 	case 16: return "XEN_ELFNOTE_MOD_START_PFN";
 	case 17: return "XEN_ELFNOTE_SUPPORTED_FEATURES";
-	case 18: return "XEN_ELFNOTE_PHYS32_ENTRY";
 	default: return (note_type_unknown(nt));
 	}
 }
@@ -2125,6 +1991,74 @@ dwarf_reg(unsigned int mach, unsigned int reg)
 		case 49: return "ldtr";
 		default: return (NULL);
 		}
+	case EM_LOONGARCH:
+		switch (reg) {
+		case 0: return "zero";
+		case 1: return "ra";
+		case 2: return "tp";
+		case 3: return "sp";
+		case 4: return "a0";
+		case 5: return "a1";
+		case 6: return "a2";
+		case 7: return "a3";
+		case 8: return "a4";
+		case 9: return "a5";
+		case 10: return "a6";
+		case 11: return "a7";
+		case 12: return "t0";
+		case 13: return "t1";
+		case 14: return "t2";
+		case 15: return "t3";
+		case 16: return "t4";
+		case 17: return "t5";
+		case 18: return "t6";
+		case 19: return "t7";
+		case 20: return "t8";
+		case 21: return "reserved";
+		case 22: return "fp";
+		case 23: return "s0";
+		case 24: return "s1";
+		case 25: return "s2";
+		case 26: return "s3";
+		case 27: return "s4";
+		case 28: return "s5";
+		case 29: return "s6";
+		case 30: return "s7";
+		case 31: return "s8";
+		case 32: return "fa0";
+		case 33: return "fa1";
+		case 34: return "fa2";
+		case 35: return "fa3";
+		case 36: return "fa4";
+		case 37: return "fa5";
+		case 38: return "fa6";
+		case 39: return "fa7";
+		case 40: return "ft0";
+		case 41: return "ft1";
+		case 42: return "ft2";
+		case 43: return "ft3";
+		case 44: return "ft4";
+		case 45: return "ft5";
+		case 46: return "ft6";
+		case 47: return "ft7";
+		case 48: return "ft8";
+		case 49: return "ft9";
+		case 50: return "ft10";
+		case 51: return "ft11";
+		case 52: return "ft12";
+		case 53: return "ft13";
+		case 54: return "ft14";
+		case 55: return "ft15";
+		case 56: return "fs0";
+		case 57: return "fs1";
+		case 58: return "fs2";
+		case 59: return "fs3";
+		case 60: return "fs4";
+		case 61: return "fs5";
+		case 62: return "fs6";
+		case 63: return "fs7";
+		default: return (NULL);
+		}
 	case EM_RISCV:
 		switch (reg) {
 		case 0: return "zero";
@@ -2369,6 +2303,23 @@ dump_eflags(struct readelf *re, uint64_t e_flags)
 		else if (arm_eabi <= 5)
 			printf(", Version%d EABI", arm_eabi);
 		edesc = arm_eflags_desc;
+		break;
+	case EM_LOONGARCH:
+		switch (e_flags & EF_LOONGARCH_ABI_MODIFIER_MASK) {
+		case EF_LOONGARCH_ABI_SOFT_FLOAT:
+			printf(", SOFT-FLOAT");
+			break;
+		case EF_LOONGARCH_ABI_SINGLE_FLOAT:
+			printf(", SINGLE-FLOAT");
+			break;
+		case EF_LOONGARCH_ABI_DOUBLE_FLOAT:
+			printf(", DOUBLE-FLOAT");
+			break;
+		case EF_LOONGARCH_ABI_MODIFIER_MASK:
+			printf(", MODIFIER-MASK");
+			break;
+		}
+		edesc = loongarch_eflags_desc;
 		break;
 	case EM_MIPS:
 	case EM_MIPS_RS3_LE:
@@ -2663,21 +2614,16 @@ dump_shdr(struct readelf *re)
 				    " %6.6jx %6.6jx %2.2jx  %2u %3u %2ju\n"
 				    "       %s\n", ST_CT);
 			else
-				if (re->options & RE_WW)
-					printf("  [%2d] %-17s %-15.15s "
-					    "%8.8jx %6.6jx %6.6jx %2.2jx %3s "
-					    "%2u %3u %2ju\n", S_CT);
-				else
-					printf("  [%2d] %-17.17s %-15.15s "
-					    "%8.8jx %6.6jx %6.6jx %2.2jx %3s "
-					    "%2u %3u %2ju\n", S_CT);
+				printf("  [%2d] %-17.17s %-15.15s %8.8jx"
+				    " %6.6jx %6.6jx %2.2jx %3s %2u %3u %2ju\n",
+				    S_CT);
 		} else if (re->options & RE_WW) {
 			if (re->options & RE_T)
 				printf("  [%2d] %s\n       %-15.15s %16.16jx"
 				    " %6.6jx %6.6jx %2.2jx  %2u %3u %2ju\n"
 				    "       %s\n", ST_CT);
 			else
-				printf("  [%2d] %-17s %-15.15s %16.16jx"
+				printf("  [%2d] %-17.17s %-15.15s %16.16jx"
 				    " %6.6jx %6.6jx %2.2jx %3s %2u %3u %2ju\n",
 				    S_CT);
 		} else {
@@ -2801,8 +2747,9 @@ timestamp(time_t ti)
 
 	t = gmtime(&ti);
 	snprintf(ts, sizeof(ts), "%04d-%02d-%02dT%02d:%02d:%02d",
-	    t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, t->tm_hour,
-	    t->tm_min, t->tm_sec);
+	    (t->tm_year + 1900) % 10000u, (t->tm_mon + 1) % 100u,
+	    t->tm_mday % 100u, t->tm_hour % 100u, t->tm_min % 100u,
+	    t->tm_sec % 100u);
 
 	return (ts);
 }
@@ -2941,9 +2888,6 @@ static struct flag_desc dt_flags_1[] = {
 	{ 0x400000,		"NORELOC" },
 	{ 0x800000,		"SYMINTPOSE" },
 	{ 0x1000000,		"GLOBAUDIT" },
-	{ 0x02000000,		"SINGLETON" },
-	{ 0x04000000,		"STUB" },
-	{ DF_1_PIE,		"PIE" },
 	{ 0, NULL }
 };
 
@@ -3263,7 +3207,8 @@ dump_symtab(struct readelf *re, int i)
 		return;
 	if (!get_ent_count(s, &len))
 		return;
-	printf("\nSymbol table '%s' contains %d entries:\n", s->name, len);
+	printf("Symbol table (%s)", s->name);
+	printf(" contains %d entries:\n", len);
 	printf("%7s%9s%14s%5s%8s%6s%9s%5s\n", "Num:", "Value", "Size", "Type",
 	    "Bind", "Vis", "Ndx", "Name");
 
@@ -3569,113 +3514,6 @@ dump_gnu_hash(struct readelf *re, struct section *s)
 	free(bl);
 }
 
-static struct flag_desc gnu_property_aarch64_feature_1_and_bits[] = {
-	{ GNU_PROPERTY_AARCH64_FEATURE_1_BTI,	"BTI" },
-	{ GNU_PROPERTY_AARCH64_FEATURE_1_PAC,	"PAC" },
-	{ 0, NULL }
-};
-
-static struct flag_desc_list gnu_property_aarch64[] = {
-	{
-	    GNU_PROPERTY_AARCH64_FEATURE_1_AND,
-	    "AArch64 features",
-	    gnu_property_aarch64_feature_1_and_bits
-	},
-	{ 0, NULL, NULL }
-};
-
-static struct flag_desc gnu_property_x86_feature_1_and_bits[] = {
-	{ GNU_PROPERTY_X86_FEATURE_1_IBT,	"IBT" },
-	{ GNU_PROPERTY_X86_FEATURE_1_SHSTK,	"SHSTK" },
-	{ 0, NULL }
-};
-
-static struct flag_desc_list gnu_property_x86[] = {
-	{
-	    GNU_PROPERTY_X86_FEATURE_1_AND,
-	    "x64 features",
-	    gnu_property_x86_feature_1_and_bits
-	},
-	{ 0, NULL, NULL }
-};
-
-static struct {
-	unsigned int emachine;
-	struct flag_desc_list *flag_list;
-} gnu_property_archs[] = {
-	{ EM_AARCH64, gnu_property_aarch64 },
-	{ EM_X86_64, gnu_property_x86 },
-	{ 0, NULL }
-};
-
-static void
-dump_gnu_property_type_0(struct readelf *re, const char *buf, size_t sz)
-{
-	struct flag_desc_list *desc_list;
-	struct flag_desc *desc;
-	size_t i;
-	uint32_t type, prop_sz;
-
-	printf("      Properties: ");
-	while (sz > 0) {
-		if (sz < 8)
-			goto bad;
-
-		type = *(const uint32_t *)(const void *)buf;
-		prop_sz = *(const uint32_t *)(const void *)(buf + 4);
-		buf += 8;
-		sz -= 8;
-
-		if (prop_sz > sz)
-			goto bad;
-
-		if (type >= GNU_PROPERTY_LOPROC &&
-		    type <= GNU_PROPERTY_HIPROC) {
-			desc_list = NULL;
-			for (i = 0; gnu_property_archs[i].flag_list != NULL;
-			    i++) {
-				if (gnu_property_archs[i].emachine ==
-				    re->ehdr.e_machine) {
-					desc_list =
-					    gnu_property_archs[i].flag_list;
-					break;
-				}
-			}
-			if (desc_list == NULL) {
-				printf("machine type %x unknown\n",
-				    re->ehdr.e_machine);
-				goto unknown;
-			}
-
-			desc = NULL;
-			for (i = 0; desc_list[i].desc != NULL; i++) {
-				if (desc_list[i].type == type) {
-					desc = desc_list[i].desc;
-					break;
-				}
-			}
-			if (desc != NULL) {
-				printf("%s:", desc_list[i].desc_str);
-				if (prop_sz != 4)
-					goto bad;
-				dump_flags(desc,
-				    *(const uint32_t *)(const void *)buf);
-			}
-		}
-
-		buf += roundup2(prop_sz, 8);
-		sz -= roundup2(prop_sz, 8);
-	}
-	return;
-bad:
-	printf("corrupt GNU property\n");
-unknown:
-	printf("remaining description data:");
-	for (i = 0; i < sz; i++)
-		printf(" %02x", (unsigned char)buf[i]);
-	printf("\n");
-}
-
 static void
 dump_hash(struct readelf *re)
 {
@@ -3733,6 +3571,10 @@ dump_notes(struct readelf *re)
 					warnx("invalid PHDR offset");
 					continue;
 				}
+				/*
+				 * XXX cross-endian core notes are not
+				 * translated - ticket #583.
+				 */
 				dump_notes_content(re, rawfile + phdr.p_offset,
 				    phdr.p_filesz, phdr.p_offset);
 			}
@@ -3762,53 +3604,15 @@ dump_notes(struct readelf *re)
 }
 
 static struct flag_desc note_feature_ctl_flags[] = {
-	{ NT_FREEBSD_FCTL_ASLR_DISABLE,		"ASLR_DISABLE" },
-	{ NT_FREEBSD_FCTL_PROTMAX_DISABLE,	"PROTMAX_DISABLE" },
-	{ NT_FREEBSD_FCTL_STKGAP_DISABLE,	"STKGAP_DISABLE" },
-	{ NT_FREEBSD_FCTL_WXNEEDED,		"WXNEEDED" },
-	{ NT_FREEBSD_FCTL_LA48,			"LA48" },
+	{ 0x1, "ASLR_DISABLE" },
+	{ 0x2, "PROTMAX_DISABLE" },
+	{ 0x4, "STKGAP_DISABLE" },
 	{ 0, NULL }
 };
 
-static bool
-dump_note_string(const char *description, const char *s, size_t len)
-{
-	size_t i;
-
-	if (len == 0 || s[--len] != '\0') {
-		return (false);
-	} else {
-		for (i = 0; i < len; i++)
-			if (!isprint(s[i]))
-				return (false);
-	}
-
-	printf("   %s: %s\n", description, s);
-	return (true);
-}
-
-struct note_desc {
-	uint32_t type;
-	const char *description;
-	bool (*fp)(const char *, const char *, size_t);
-};
-
-static struct note_desc xen_notes[] = {
-	{ 5, "Xen version", dump_note_string },
-	{ 6, "Guest OS", dump_note_string },
-	{ 7, "Guest version", dump_note_string },
-	{ 8, "Loader", dump_note_string },
-	{ 9, "PAE mode", dump_note_string },
-	{ 10, "Features", dump_note_string },
-	{ 11, "BSD symtab", dump_note_string },
-	{ 0, NULL, NULL }
-};
-
 static void
-dump_notes_data(struct readelf *re, const char *name, uint32_t type,
-    const char *buf, size_t sz)
+dump_notes_data(const char *name, uint32_t type, const char *buf, size_t sz)
 {
-	struct note_desc *nd;
 	size_t i;
 	const uint32_t *ubuf;
 
@@ -3828,7 +3632,9 @@ dump_notes_data(struct readelf *re, const char *name, uint32_t type,
 			return;
 		/* NT_FREEBSD_NOINIT_TAG carries no data, treat as unknown. */
 		case NT_FREEBSD_ARCH_TAG:
-			printf("   Arch tag: %s\n", buf);
+			if (sz != 4)
+				goto unknown;
+			printf("   Arch tag: %x\n", ubuf[0]);
 			return;
 		case NT_FREEBSD_FEATURE_CTL:
 			if (sz != 4)
@@ -3836,37 +3642,6 @@ dump_notes_data(struct readelf *re, const char *name, uint32_t type,
 			printf("   Features:");
 			dump_flags(note_feature_ctl_flags, ubuf[0]);
 			return;
-		}
-	} else if (strcmp(name, "Go") == 0) {
-		if (type == 4) {
-			printf("   Build ID: ");
-			for (i = 0; i < sz; i++) {
-				printf(isprint(buf[i]) ? "%c" : "<%02x>",
-				    buf[i]);
-			}
-			printf("\n");
-			return;
-		}
-	} else if (strcmp(name, "GNU") == 0) {
-		switch (type) {
-		case NT_GNU_PROPERTY_TYPE_0:
-			dump_gnu_property_type_0(re, buf, sz);
-			return;
-		case NT_GNU_BUILD_ID:
-			printf("   Build ID: ");
-			for (i = 0; i < sz; i++)
-				printf("%02x", (unsigned char)buf[i]);
-			printf("\n");
-			return;
-		}
-	} else if (strcmp(name, "Xen") == 0) {
-		for (nd = xen_notes; nd->description != NULL; nd++) {
-			if (nd->type == type) {
-				if (nd->fp(nd->description, buf, sz))
-					return;
-				else
-					break;
-			}
 		}
 	}
 unknown:
@@ -3920,7 +3695,7 @@ dump_notes_content(struct readelf *re, const char *buf, size_t sz, off_t off)
 		printf("  %-13s %#010jx", name, (uintmax_t) note->n_descsz);
 		printf("      %s\n", note_type(name, re->ehdr.e_type,
 		    note->n_type));
-		dump_notes_data(re, name, note->n_type, buf, note->n_descsz);
+		dump_notes_data(name, note->n_type, buf, note->n_descsz);
 		buf += descsz;
 	}
 }
@@ -4238,8 +4013,10 @@ dump_liblist(struct readelf *re)
 			ti = lib->l_time_stamp;
 			t = gmtime(&ti);
 			snprintf(tbuf, sizeof(tbuf), "%04d-%02d-%02dT%02d:%02d"
-			    ":%2d", t->tm_year + 1900, t->tm_mon + 1,
-			    t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec);
+			    ":%2d", (t->tm_year + 1900) % 10000u,
+			    (t->tm_mon + 1) % 100u, t->tm_mday % 100u,
+			    t->tm_hour % 100u, t->tm_min % 100u,
+			    t->tm_sec % 100u);
 			printf("%-19.19s ", tbuf);
 			printf("0x%08x ", lib->l_checksum);
 			printf("%-7d %#x", lib->l_version, lib->l_flags);
@@ -4296,9 +4073,6 @@ dump_section_groups(struct readelf *re)
 		w = d->d_buf;
 
 		/* We only support COMDAT section. */
-#ifndef GRP_COMDAT
-#define	GRP_COMDAT 0x1
-#endif
 		if ((*w++ & GRP_COMDAT) == 0)
 			return;
 
@@ -4871,7 +4645,7 @@ dump_arch_specific_info(struct readelf *re)
 static const char *
 dwarf_regname(struct readelf *re, unsigned int num)
 {
-	static char rx[32];
+	static char rx[REGISTER_NAME_BUFFER_SIZE];
 	const char *rn;
 
 	if ((rn = dwarf_reg(re->ehdr.e_machine, num)) != NULL)
@@ -4882,42 +4656,426 @@ dwarf_regname(struct readelf *re, unsigned int num)
 	return (rx);
 }
 
+static const char *
+get_lnct_path(struct readelf *re, unsigned form, uint8_t **p, const char *st,
+    const char *ls, int dwarf_size)
+{
+	const char *s = NULL;
+	Dwarf_Unsigned sp;
+
+	switch (form) {
+	case DW_FORM_string:
+		s = (char *) *p;
+		*p += strlen((char *) *p) + 1;
+		break;
+	case DW_FORM_strp:
+		sp = re->dw_decode(p, dwarf_size);
+		if (st == NULL) {
+			warnx(".debug_str not present");
+			break;
+		}
+		s = st + sp;
+		break;
+	case DW_FORM_line_strp:
+		sp = re->dw_decode(p, dwarf_size);
+		if (ls == NULL) {
+			warnx(".debug_line_str not present");
+			break;
+		}
+		s = ls + sp;
+		break;
+	case DW_FORM_strp_sup:
+		sp = re->dw_decode(p, dwarf_size);
+		warnx("DW_FORM_strp_sup not supported");
+		break;
+	default:
+		warnx("Unrecgonized Form: %u", form);
+		break;
+	}
+
+	return (s);
+}
+
+static Dwarf_Unsigned
+get_lnct_dirndx(struct readelf *re, unsigned form, uint8_t **p, uint8_t *pe)
+{
+
+	switch (form) {
+	case DW_FORM_data1:
+		return (re->dw_decode(p, 1));
+	case DW_FORM_data2:
+		return (re->dw_decode(p, 2));
+	case DW_FORM_udata:
+		return (_decode_uleb128(p, pe));
+	default:
+		warnx("Unrecgonized Form: %u", form);
+		return (0);
+	}
+}
+
+static void
+dump_dwarf_line_cu(struct readelf *re, Elf_Data *d, Elf_Data *ds, Elf_Data *dl,
+    Dwarf_Unsigned offset, Dwarf_Unsigned length, int dwarf_size)
+{
+	struct lnct lnct[10];
+	Dwarf_Unsigned endoff, hdrlen, dirndx, mtime, fsize;
+	Dwarf_Half version, pointer_size;
+	Dwarf_Small minlen, maxop, defstmt, lrange, opbase, oplen;
+	Dwarf_Error de;
+	uint64_t address, file, line, column, isa, opsize, udelta;
+	int64_t sdelta;
+	uint8_t *p, *pp, *pe;
+	char *pn, *st, *ls;
+	const char *path;
+	int8_t lbase;
+	int i, j, is_stmt, fmt_cnt, dir_cnt, file_cnt;
+
+	st = ds ? (char *) ds->d_buf : NULL;
+	ls = dl ? (char *) dl->d_buf : NULL;
+	endoff = offset + length;
+	pe = (uint8_t *) d->d_buf + endoff;
+	version = re->dw_read(d, &offset, 2);
+	if (version == 5) {
+		pointer_size = re->dw_read(d, &offset, 1);
+		(void) re->dw_read(d, &offset, 1);
+	} else {
+		(void) dwarf_get_address_size(re->dbg, &pointer_size, &de);
+	}
+	hdrlen = re->dw_read(d, &offset, dwarf_size);
+	minlen = re->dw_read(d, &offset, 1);
+	if (version >= 4)
+		maxop = re->dw_read(d, &offset, 1);
+	defstmt = re->dw_read(d, &offset, 1);
+	lbase = re->dw_read(d, &offset, 1);
+	lrange = re->dw_read(d, &offset, 1);
+	opbase = re->dw_read(d, &offset, 1);
+
+	printf("\n");
+	printf("  Length:\t\t\t%ju\n", (uintmax_t) length);
+	printf("  DWARF version:\t\t%u\n", version);
+	printf("  Prologue Length:\t\t%ju\n", (uintmax_t) hdrlen);
+	printf("  Minimum Instruction Length:\t%u\n", minlen);
+	if (version >= 4)
+		printf("  Maximum Ops per Instruction:\t%u\n", maxop);
+	printf("  Initial value of 'is_stmt':\t%u\n", defstmt);
+	printf("  Line Base:\t\t\t%d\n", lbase);
+	printf("  Line Range:\t\t\t%u\n", lrange);
+	printf("  Opcode Base:\t\t\t%u\n", opbase);
+	printf("  (Pointer size:\t\t%u)\n", pointer_size);
+
+	printf("\n");
+	printf(" Opcodes:\n");
+	for (i = 1; i < opbase; i++) {
+		oplen = re->dw_read(d, &offset, 1);
+		printf("  Opcode %d has %u %s\n", i, oplen,
+		    oplen == 1 ? "arg" : "args");
+	}
+
+	if (version == 5) {
+		/* DWARF5. */
+		fmt_cnt = re->dw_read(d, &offset, 1);
+		if (fmt_cnt != 1) {
+			warnx("Too many content descriptors for dir");
+			return;
+		}
+		pp = p = (uint8_t *) d->d_buf + offset;
+		lnct[0].type = _decode_uleb128(&p, pe);
+		if (lnct[0].type != DW_LNCT_path) {
+			warnx("Invalid content descriptors for dir");
+			return;
+		}
+		lnct[0].form = _decode_uleb128(&p, pe);
+		dir_cnt = _decode_uleb128(&p, pe);
+		offset += p - pp;
+		pp = p;
+		printf("\n");
+		printf(" The Directory Table (offset %#jx):\n",
+		    (uintmax_t) offset);
+		for (i = 0; i < dir_cnt; i++) {
+			path = get_lnct_path(re, lnct[0].form, &p, st, ls,
+			    dwarf_size);
+			printf("  %d\t%s\n", i, path);
+		}
+
+	} else {
+		/* DWARF4 or below. */
+		printf("\n");
+		printf(" The Directory Table (offset %#jx):\n",
+		    (uintmax_t) offset);
+		pp = p = (uint8_t *) d->d_buf + offset;
+		i = 0;
+		while (*p != '\0') {
+			i++;
+			printf("  %d\t%s\n", i, (char *) p);
+			p += strlen((char *) p) + 1;
+		}
+		p++;
+	}
+
+	offset += p - pp;
+	pp = p;
+
+	if (version == 5) {
+		/* DWARF5. */
+		fmt_cnt = re->dw_read(d, &offset, 1);
+		pp = p = (uint8_t *) d->d_buf + offset;
+		for (i = 0; i < fmt_cnt; i++) {
+			lnct[i].type = _decode_uleb128(&p, pe);
+			lnct[i].form = _decode_uleb128(&p, pe);
+		}
+		file_cnt = _decode_uleb128(&p, pe);
+		offset += p - pp;
+		pp = p;
+		printf("\n");
+		printf(" The File Name Table (offset %#jx):\n",
+		    (uintmax_t) offset);
+		printf("  Entry\tDir\tName\n");
+		for (i = 0; i < file_cnt; i++) {
+			path = ""; dirndx = 0U;
+			for (j = 0; j < fmt_cnt; j++) {
+				switch (lnct[j].type) {
+				case DW_LNCT_path:
+					path = get_lnct_path(re, lnct[j].form,
+					    &p, st, ls, dwarf_size);
+					break;
+				case DW_LNCT_directory_index:
+					dirndx = get_lnct_dirndx(re,
+					    lnct[j].form, &p, pe);
+					break;
+				default:
+					warnx("Unhandled type: %u",
+					    lnct[j].type);
+					break;
+				}
+			}
+			printf("  %d\t%ju\t%s\n", i, (uintmax_t) dirndx, path);
+		}
+	} else {
+		/* DWARF4 or below. */
+		printf("\n");
+		printf(" The File Name Table (offset %#jx):\n",
+		    (uintmax_t) offset);
+		printf("  Entry\tDir\tTime\tSize\tName\n");
+		i = 0;
+		while (*p != '\0') {
+			i++;
+			pn = (char *) p;
+			p += strlen(pn) + 1;
+			dirndx = _decode_uleb128(&p, pe);
+			mtime = _decode_uleb128(&p, pe);
+			fsize = _decode_uleb128(&p, pe);
+			printf("  %d\t%ju\t%ju\t%ju\t%s\n", i,
+			    (uintmax_t) dirndx, (uintmax_t) mtime,
+			    (uintmax_t) fsize, pn);
+		}
+		p++;
+	}
+
+#define	RESET_REGISTERS				\
+	do {					\
+		address	       = 0;		\
+		file	       = 1;		\
+		line	       = 1;		\
+		column	       = 0;		\
+		is_stmt	       = defstmt;	\
+	} while(0)
+
+#define	LINE(x) (lbase + (((x) - opbase) % lrange))
+#define	ADDRESS(x) ((((x) - opbase) / lrange) * minlen)
+
+	printf("\n");
+	printf(" Line Number Statements:\n");
+
+	RESET_REGISTERS;
+
+	while (p < pe) {
+
+		offset += p - pp;
+		pp = p;
+		printf("  [0x%08jx]" , (uintmax_t) offset);
+
+		if (*p == 0) {
+			/*
+			 * Extended Opcodes.
+			 */
+			p++;
+			opsize = _decode_uleb128(&p, pe);
+			printf("  Extended opcode %u: ", *p);
+			switch (*p) {
+			case DW_LNE_end_sequence:
+				p++;
+				RESET_REGISTERS;
+				printf("End of Sequence\n");
+				break;
+			case DW_LNE_set_address:
+				p++;
+				address = re->dw_decode(&p,
+				    pointer_size);
+				printf("set Address to %#jx\n",
+				    (uintmax_t) address);
+				break;
+			case DW_LNE_define_file:
+				p++;
+				pn = (char *) p;
+				p += strlen(pn) + 1;
+				dirndx = _decode_uleb128(&p, pe);
+				mtime = _decode_uleb128(&p, pe);
+				fsize = _decode_uleb128(&p, pe);
+				printf("define new file: %s\n", pn);
+				break;
+			default:
+				/* Unrecognized extened opcodes. */
+				p += opsize;
+				printf("unknown opcode\n");
+			}
+		} else if (*p > 0 && *p < opbase) {
+			/*
+			 * Standard Opcodes.
+			 */
+			switch(*p++) {
+			case DW_LNS_copy:
+				printf("  Copy\n");
+				break;
+			case DW_LNS_advance_pc:
+				udelta = _decode_uleb128(&p, pe) *
+					minlen;
+				address += udelta;
+				printf("  Advance PC by %ju to %#jx\n",
+				    (uintmax_t) udelta,
+				    (uintmax_t) address);
+				break;
+			case DW_LNS_advance_line:
+				sdelta = _decode_sleb128(&p, pe);
+				line += sdelta;
+				printf("  Advance Line by %jd to %ju\n",
+				    (intmax_t) sdelta,
+				    (uintmax_t) line);
+				break;
+			case DW_LNS_set_file:
+				file = _decode_uleb128(&p, pe);
+				printf("  Set File to %ju\n",
+				    (uintmax_t) file);
+				break;
+			case DW_LNS_set_column:
+				column = _decode_uleb128(&p, pe);
+				printf("  Set Column to %ju\n",
+				    (uintmax_t) column);
+				break;
+			case DW_LNS_negate_stmt:
+				is_stmt = !is_stmt;
+				printf("  Set is_stmt to %d\n", is_stmt);
+				break;
+			case DW_LNS_set_basic_block:
+				printf("  Set basic block flag\n");
+				break;
+			case DW_LNS_const_add_pc:
+				address += ADDRESS(255);
+				printf("  Advance PC by constant %ju"
+				    " to %#jx\n",
+				    (uintmax_t) ADDRESS(255),
+				    (uintmax_t) address);
+				break;
+			case DW_LNS_fixed_advance_pc:
+				udelta = re->dw_decode(&p, 2);
+				address += udelta;
+				printf("  Advance PC by fixed value "
+				    "%ju to %#jx\n",
+				    (uintmax_t) udelta,
+				    (uintmax_t) address);
+				break;
+			case DW_LNS_set_prologue_end:
+				printf("  Set prologue end flag\n");
+				break;
+			case DW_LNS_set_epilogue_begin:
+				printf("  Set epilogue begin flag\n");
+				break;
+			case DW_LNS_set_isa:
+				isa = _decode_uleb128(&p, pe);
+				printf("  Set isa to %ju\n",
+				    (uintmax_t) isa);
+				break;
+			default:
+				/* Unrecognized extended opcodes. */
+				printf("  Unknown extended opcode %u\n",
+				    *(p - 1));
+				break;
+			}
+
+		} else {
+			/*
+			 * Special Opcodes.
+			 */
+			line += LINE(*p);
+			address += ADDRESS(*p);
+			printf("  Special opcode %u: advance Address "
+			    "by %ju to %#jx and Line by %jd to %ju\n",
+			    *p - opbase, (uintmax_t) ADDRESS(*p),
+			    (uintmax_t) address, (intmax_t) LINE(*p),
+			    (uintmax_t) line);
+			p++;
+		}
+
+
+	}
+
+}
+
 static void
 dump_dwarf_line(struct readelf *re)
 {
 	struct section *s;
 	Dwarf_Die die;
 	Dwarf_Error de;
-	Dwarf_Half tag, version, pointer_size;
-	Dwarf_Unsigned offset, endoff, length, hdrlen, dirndx, mtime, fsize;
-	Dwarf_Small minlen, defstmt, lrange, opbase, oplen;
-	Elf_Data *d;
-	char *pn;
-	uint64_t address, file, line, column, isa, opsize, udelta;
-	int64_t sdelta;
-	uint8_t *p, *pe;
-	int8_t lbase;
-	int i, is_stmt, dwarf_size, elferr, ret;
+	Dwarf_Half tag;
+	Dwarf_Unsigned offset, length;
+	Elf_Data *d, *ds, *dl;
+	int elferr, ret, i, dwarf_size;
 
 	printf("\nDump of debug contents of section .debug_line:\n");
 
+	d = ds = dl = NULL;
 	s = NULL;
 	for (i = 0; (size_t) i < re->shnum; i++) {
 		s = &re->sl[i];
-		if (s->name != NULL && !strcmp(s->name, ".debug_line"))
-			break;
+		if (s->name == NULL)
+			continue;
+		if (!strcmp(s->name, ".debug_line")) {
+			(void) elf_errno();
+			if ((d = elf_getdata(s->scn, NULL)) == NULL) {
+				elferr = elf_errno();
+				if (elferr != 0)
+					warnx("elf_getdata .debug_line "
+					    "failed: %s", elf_errmsg(-1));
+				return;
+			}
+			if (d->d_size <= 0)
+				return;
+		} else if (!strcmp(s->name, ".debug_str")) {
+			(void) elf_errno();
+			if ((ds = elf_getdata(s->scn, NULL)) == NULL) {
+				elferr = elf_errno();
+				if (elferr != 0)
+					warnx("elf_getdata .debug_str "
+					    "failed: %s", elf_errmsg(-1));
+				return;
+			}
+			if (ds->d_size <= 0)
+				ds = NULL;
+		} else if (!strcmp(s->name, ".debug_line_str")) {
+			(void) elf_errno();
+			if ((dl = elf_getdata(s->scn, NULL)) == NULL) {
+				elferr = elf_errno();
+				if (elferr != 0)
+					warnx("elf_getdata .debug_str_line "
+					    "failed: %s", elf_errmsg(-1));
+				return;
+			}
+			if (dl->d_size <= 0)
+				dl = NULL;
+		}
 	}
-	if ((size_t) i >= re->shnum)
-		return;
 
-	(void) elf_errno();
-	if ((d = elf_getdata(s->scn, NULL)) == NULL) {
-		elferr = elf_errno();
-		if (elferr != 0)
-			warnx("elf_getdata failed: %s", elf_errmsg(-1));
-		return;
-	}
-	if (d->d_size <= 0)
+	if (d == NULL)
 		return;
 
 	while ((ret = dwarf_next_cu_header(re->dbg, NULL, NULL, NULL, NULL,
@@ -4938,10 +5096,8 @@ dump_dwarf_line(struct readelf *re)
 			return;
 		}
 		if (dwarf_attrval_unsigned(die, DW_AT_stmt_list, &offset,
-		    &de) != DW_DLV_OK) {
-			dwarf_dealloc(re->dbg, die, DW_DLA_DIE);
+		    &de) != DW_DLV_OK)
 			continue;
-		}
 
 		length = re->dw_read(d, &offset, 4);
 		if (length == 0xffffffff) {
@@ -4952,206 +5108,10 @@ dump_dwarf_line(struct readelf *re)
 
 		if (length > d->d_size - offset) {
 			warnx("invalid .dwarf_line section");
-			dwarf_dealloc(re->dbg, die, DW_DLA_DIE);
 			continue;
 		}
 
-		endoff = offset + length;
-		pe = (uint8_t *) d->d_buf + endoff;
-		version = re->dw_read(d, &offset, 2);
-		hdrlen = re->dw_read(d, &offset, dwarf_size);
-		minlen = re->dw_read(d, &offset, 1);
-		defstmt = re->dw_read(d, &offset, 1);
-		lbase = re->dw_read(d, &offset, 1);
-		lrange = re->dw_read(d, &offset, 1);
-		opbase = re->dw_read(d, &offset, 1);
-
-		printf("\n");
-		printf("  Length:\t\t\t%ju\n", (uintmax_t) length);
-		printf("  DWARF version:\t\t%u\n", version);
-		printf("  Prologue Length:\t\t%ju\n", (uintmax_t) hdrlen);
-		printf("  Minimum Instruction Length:\t%u\n", minlen);
-		printf("  Initial value of 'is_stmt':\t%u\n", defstmt);
-		printf("  Line Base:\t\t\t%d\n", lbase);
-		printf("  Line Range:\t\t\t%u\n", lrange);
-		printf("  Opcode Base:\t\t\t%u\n", opbase);
-		(void) dwarf_get_address_size(re->dbg, &pointer_size, &de);
-		printf("  (Pointer size:\t\t%u)\n", pointer_size);
-
-		printf("\n");
-		printf(" Opcodes:\n");
-		for (i = 1; i < opbase; i++) {
-			oplen = re->dw_read(d, &offset, 1);
-			printf("  Opcode %d has %u args\n", i, oplen);
-		}
-
-		printf("\n");
-		printf(" The Directory Table:\n");
-		p = (uint8_t *) d->d_buf + offset;
-		while (*p != '\0') {
-			printf("  %s\n", (char *) p);
-			p += strlen((char *) p) + 1;
-		}
-
-		p++;
-		printf("\n");
-		printf(" The File Name Table:\n");
-		printf("  Entry\tDir\tTime\tSize\tName\n");
-		i = 0;
-		while (*p != '\0') {
-			i++;
-			pn = (char *) p;
-			p += strlen(pn) + 1;
-			dirndx = _decode_uleb128(&p, pe);
-			mtime = _decode_uleb128(&p, pe);
-			fsize = _decode_uleb128(&p, pe);
-			printf("  %d\t%ju\t%ju\t%ju\t%s\n", i,
-			    (uintmax_t) dirndx, (uintmax_t) mtime,
-			    (uintmax_t) fsize, pn);
-		}
-
-#define	RESET_REGISTERS						\
-	do {							\
-		address	       = 0;				\
-		file	       = 1;				\
-		line	       = 1;				\
-		column	       = 0;				\
-		is_stmt	       = defstmt;			\
-	} while(0)
-
-#define	LINE(x) (lbase + (((x) - opbase) % lrange))
-#define	ADDRESS(x) ((((x) - opbase) / lrange) * minlen)
-
-		p++;
-		printf("\n");
-		printf(" Line Number Statements:\n");
-
-		RESET_REGISTERS;
-
-		while (p < pe) {
-
-			if (*p == 0) {
-				/*
-				 * Extended Opcodes.
-				 */
-				p++;
-				opsize = _decode_uleb128(&p, pe);
-				printf("  Extended opcode %u: ", *p);
-				switch (*p) {
-				case DW_LNE_end_sequence:
-					p++;
-					RESET_REGISTERS;
-					printf("End of Sequence\n");
-					break;
-				case DW_LNE_set_address:
-					p++;
-					address = re->dw_decode(&p,
-					    pointer_size);
-					printf("set Address to %#jx\n",
-					    (uintmax_t) address);
-					break;
-				case DW_LNE_define_file:
-					p++;
-					pn = (char *) p;
-					p += strlen(pn) + 1;
-					dirndx = _decode_uleb128(&p, pe);
-					mtime = _decode_uleb128(&p, pe);
-					fsize = _decode_uleb128(&p, pe);
-					printf("define new file: %s\n", pn);
-					break;
-				default:
-					/* Unrecognized extened opcodes. */
-					p += opsize;
-					printf("unknown opcode\n");
-				}
-			} else if (*p > 0 && *p < opbase) {
-				/*
-				 * Standard Opcodes.
-				 */
-				switch(*p++) {
-				case DW_LNS_copy:
-					printf("  Copy\n");
-					break;
-				case DW_LNS_advance_pc:
-					udelta = _decode_uleb128(&p, pe) *
-					    minlen;
-					address += udelta;
-					printf("  Advance PC by %ju to %#jx\n",
-					    (uintmax_t) udelta,
-					    (uintmax_t) address);
-					break;
-				case DW_LNS_advance_line:
-					sdelta = _decode_sleb128(&p, pe);
-					line += sdelta;
-					printf("  Advance Line by %jd to %ju\n",
-					    (intmax_t) sdelta,
-					    (uintmax_t) line);
-					break;
-				case DW_LNS_set_file:
-					file = _decode_uleb128(&p, pe);
-					printf("  Set File to %ju\n",
-					    (uintmax_t) file);
-					break;
-				case DW_LNS_set_column:
-					column = _decode_uleb128(&p, pe);
-					printf("  Set Column to %ju\n",
-					    (uintmax_t) column);
-					break;
-				case DW_LNS_negate_stmt:
-					is_stmt = !is_stmt;
-					printf("  Set is_stmt to %d\n", is_stmt);
-					break;
-				case DW_LNS_set_basic_block:
-					printf("  Set basic block flag\n");
-					break;
-				case DW_LNS_const_add_pc:
-					address += ADDRESS(255);
-					printf("  Advance PC by constant %ju"
-					    " to %#jx\n",
-					    (uintmax_t) ADDRESS(255),
-					    (uintmax_t) address);
-					break;
-				case DW_LNS_fixed_advance_pc:
-					udelta = re->dw_decode(&p, 2);
-					address += udelta;
-					printf("  Advance PC by fixed value "
-					    "%ju to %#jx\n",
-					    (uintmax_t) udelta,
-					    (uintmax_t) address);
-					break;
-				case DW_LNS_set_prologue_end:
-					printf("  Set prologue end flag\n");
-					break;
-				case DW_LNS_set_epilogue_begin:
-					printf("  Set epilogue begin flag\n");
-					break;
-				case DW_LNS_set_isa:
-					isa = _decode_uleb128(&p, pe);
-					printf("  Set isa to %ju\n",
-					    (uintmax_t) isa);
-					break;
-				default:
-					/* Unrecognized extended opcodes. */
-					printf("  Unknown extended opcode %u\n",
-					    *(p - 1));
-					break;
-				}
-
-			} else {
-				/*
-				 * Special Opcodes.
-				 */
-				line += LINE(*p);
-				address += ADDRESS(*p);
-				printf("  Special opcode %u: advance Address "
-				    "by %ju to %#jx and Line by %jd to %ju\n",
-				    *p - opbase, (uintmax_t) ADDRESS(*p),
-				    (uintmax_t) address, (intmax_t) LINE(*p),
-				    (uintmax_t) line);
-				p++;
-			}
-		}
-		dwarf_dealloc(re->dbg, die, DW_DLA_DIE);
+		dump_dwarf_line_cu(re, d, ds, dl, offset, length, dwarf_size);
 	}
 	if (ret == DW_DLV_ERROR)
 		warnx("dwarf_next_cu_header: %s", dwarf_errmsg(de));
@@ -5194,9 +5154,9 @@ dump_dwarf_line_decoded(struct readelf *re)
 		printf("%-37s %11s   %s\n", "Filename", "Line Number",
 		    "Starting Address");
 		if (dwarf_srclines(die, &linebuf, &linecount, &de) != DW_DLV_OK)
-			goto done;
+			continue;
 		if (dwarf_srcfiles(die, &srcfiles, &srccount, &de) != DW_DLV_OK)
-			goto done;
+			continue;
 		for (i = 0; i < linecount; i++) {
 			ln = linebuf[i];
 			if (dwarf_line_srcfileno(ln, &fn, &de) != DW_DLV_OK)
@@ -5210,8 +5170,6 @@ dump_dwarf_line_decoded(struct readelf *re)
 			    (uintmax_t) lineaddr);
 		}
 		putchar('\n');
-done:
-		dwarf_dealloc(re->dbg, die, DW_DLA_DIE);
 	}
 }
 
@@ -5372,6 +5330,12 @@ dump_dwarf_die(struct readelf *re, Dwarf_Die die, int level)
 
 		case DW_FORM_string:
 		case DW_FORM_strp:
+		case DW_FORM_line_strp:
+		case DW_FORM_strx:
+		case DW_FORM_strx1:
+		case DW_FORM_strx2:
+		case DW_FORM_strx3:
+		case DW_FORM_strx4:
 			if (dwarf_formstring(attr_list[i], &v_str, &de) !=
 			    DW_DLV_OK) {
 				warnx("dwarf_formstring failed: %s",
@@ -5380,8 +5344,14 @@ dump_dwarf_die(struct readelf *re, Dwarf_Die die, int level)
 			}
 			if (form == DW_FORM_string)
 				printf("%s", v_str);
-			else
+			else if (form == DW_FORM_strp)
 				printf("(indirect string) %s", v_str);
+			else if (form == DW_FORM_line_strp)
+				printf("(indirect line string) %s", v_str);
+			else if (form == DW_FORM_strx ||
+			    form == DW_FORM_strx1 || form == DW_FORM_strx2 ||
+			    form == DW_FORM_strx3 || form == DW_FORM_strx4)
+				printf("(indexed string) %s", v_str);
 			break;
 
 		case DW_FORM_block:
@@ -5510,14 +5480,15 @@ dump_dwarf_info(struct readelf *re, Dwarf_Bool is_info)
 	struct section *s;
 	Dwarf_Die die;
 	Dwarf_Error de;
-	Dwarf_Half tag, version, pointer_size, off_size;
+	Dwarf_Half tag, version, pointer_size, off_size, cu_type;
 	Dwarf_Off cu_offset, cu_length;
 	Dwarf_Off aboff;
 	Dwarf_Unsigned typeoff;
 	Dwarf_Sig8 sig8;
 	Dwarf_Unsigned sig;
 	uint8_t *p;
-	const char *sn;
+	const char *sn, *ut;
+	char unk_ut[32];
 	int i, ret;
 
 	sn = is_info ? ".debug_info" : ".debug_types";
@@ -5534,9 +5505,9 @@ dump_dwarf_info(struct readelf *re, Dwarf_Bool is_info)
 	do {
 		printf("\nDump of debug contents of section %s:\n", sn);
 
-		while ((ret = dwarf_next_cu_header_c(re->dbg, is_info, NULL,
+		while ((ret = dwarf_next_cu_header_d(re->dbg, is_info, NULL,
 		    &version, &aboff, &pointer_size, &off_size, NULL, &sig8,
-		    &typeoff, NULL, &de)) == DW_DLV_OK) {
+		    &typeoff, NULL, &cu_type, &de)) == DW_DLV_OK) {
 			set_cu_context(re, pointer_size, off_size, version);
 			die = NULL;
 			while (dwarf_siblingof_b(re->dbg, die, &die, is_info,
@@ -5575,11 +5546,22 @@ dump_dwarf_info(struct readelf *re, Dwarf_Bool is_info)
 				sig = re->dw_decode(&p, 8);
 			}
 
-			printf("\n  Type Unit @ offset 0x%jx:\n",
+			printf("\n  %s Unit @ offset 0x%jx:\n",
+			    is_info ? "Compilation" : "Type",
 			    (uintmax_t) cu_offset);
 			printf("    Length:\t\t%#jx (%d-bit)\n",
 			    (uintmax_t) cu_length, off_size == 4 ? 32 : 64);
 			printf("    Version:\t\t%u\n", version);
+			if (version == 5) {
+				if (dwarf_get_UT_name(cu_type, &ut) !=
+				    DW_DLV_OK) {
+					snprintf(unk_ut, sizeof(unk_ut),
+					    "[Unknown UT: %#x]", cu_type);
+					ut = unk_ut;
+				}
+				printf("    Unit Type:\t\t%s (%u)\n",
+				    ut, cu_type);
+			}
 			printf("    Abbrev Offset:\t0x%jx\n",
 			    (uintmax_t) aboff);
 			printf("    Pointer Size:\t%u\n", pointer_size);
@@ -5844,8 +5826,7 @@ dump_dwarf_ranges_foreach(struct readelf *re, Dwarf_Die die, Dwarf_Addr base)
 	Dwarf_Addr base0;
 	Dwarf_Half attr;
 	Dwarf_Signed attr_count, cnt;
-	Dwarf_Unsigned bytecnt;
-	Dwarf_Off off;
+	Dwarf_Unsigned off, bytecnt;
 	int i, j, ret;
 
 	if ((ret = dwarf_attrlist(die, &attr_list, &attr_count, &de)) !=
@@ -5862,12 +5843,11 @@ dump_dwarf_ranges_foreach(struct readelf *re, Dwarf_Die die, Dwarf_Addr base)
 		}
 		if (attr != DW_AT_ranges)
 			continue;
-		if (dwarf_global_formref(attr_list[i], &off, &de) != DW_DLV_OK) {
-			warnx("dwarf_global_formref failed: %s",
-			    dwarf_errmsg(de));
+		if (dwarf_formudata(attr_list[i], &off, &de) != DW_DLV_OK) {
+			warnx("dwarf_formudata failed: %s", dwarf_errmsg(de));
 			continue;
 		}
-		if (dwarf_get_ranges(re->dbg, off, &ranges, &cnt,
+		if (dwarf_get_ranges(re->dbg, (Dwarf_Off) off, &ranges, &cnt,
 		    &bytecnt, &de) != DW_DLV_OK)
 			continue;
 		base0 = base;
@@ -5906,8 +5886,6 @@ cont_search:
 		warnx("dwarf_siblingof: %s", dwarf_errmsg(de));
 	else if (ret == DW_DLV_OK)
 		dump_dwarf_ranges_foreach(re, ret_die, base);
-
-	dwarf_dealloc(re->dbg, die, DW_DLA_DIE);
 }
 
 static void
@@ -6098,7 +6076,7 @@ dump_dwarf_frame_inst(struct readelf *re, Dwarf_Cie cie, uint8_t *insts,
 static char *
 get_regoff_str(struct readelf *re, Dwarf_Half reg, Dwarf_Addr off)
 {
-	static char rs[16];
+	static char rs[REGISTER_NAME_BUFFER_SIZE + DWARF_ADDR_BUFFER_SIZE - 1];
 
 	if (reg == DW_FRAME_UNDEFINED_VAL || reg == DW_FRAME_REG_INITIAL_VALUE)
 		snprintf(rs, sizeof(rs), "%c", 'u');
@@ -6168,7 +6146,6 @@ dump_dwarf_frame_regtable(struct readelf *re, Dwarf_Fde fde, Dwarf_Addr pc,
 	for (; cur_pc < end_pc; cur_pc++) {
 		if (dwarf_get_fde_info_for_all_regs(fde, cur_pc, &rt, &row_pc,
 		    &de) != DW_DLV_OK) {
-			free(vec);
 			warnx("dwarf_get_fde_info_for_all_regs failed: %s\n",
 			    dwarf_errmsg(de));
 			return (-1);
@@ -6212,7 +6189,7 @@ dump_dwarf_frame_section(struct readelf *re, struct section *s, int alt)
 	Dwarf_Small cie_version;
 	Dwarf_Ptr fde_addr, fde_inst, cie_inst;
 	char *cie_aug, c;
-	int i, ret, eh_frame;
+	int i, eh_frame;
 	Dwarf_Error de;
 
 	printf("\nThe section %s contains:\n\n", s->name);
@@ -6227,13 +6204,10 @@ dump_dwarf_frame_section(struct readelf *re, struct section *s, int alt)
 		}
 	} else if (!strcmp(s->name, ".eh_frame")) {
 		eh_frame = 1;
-		ret = dwarf_get_fde_list_eh(re->dbg, &cie_list, &cie_count,
-		    &fde_list, &fde_count, &de);
-		if (ret != DW_DLV_OK) {
-			if (ret == DW_DLV_ERROR) {
-				warnx("dwarf_get_fde_list_eh failed: %s",
-				    dwarf_errmsg(de));
-			}
+		if (dwarf_get_fde_list_eh(re->dbg, &cie_list, &cie_count,
+		    &fde_list, &fde_count, &de) != DW_DLV_OK) {
+			warnx("dwarf_get_fde_list_eh failed: %s",
+			    dwarf_errmsg(de));
 			return;
 		}
 	} else
@@ -6396,27 +6370,21 @@ dump_dwarf_str(struct readelf *re)
 	}
 }
 
-static int
-loc_at_comparator(const void *la1, const void *la2)
-{
-	const struct loc_at *left, *right;
+struct loc_at {
+	Dwarf_Attribute la_at;
+	Dwarf_Unsigned la_off;
+	Dwarf_Unsigned la_lowpc;
+	Dwarf_Half la_cu_psize;
+	Dwarf_Half la_cu_osize;
+	Dwarf_Half la_cu_ver;
+	TAILQ_ENTRY(loc_at) la_next;
+};
 
-	left = (const struct loc_at *)la1;
-	right = (const struct loc_at *)la2;
-
-	if (left->la_off > right->la_off)
-		return (1);
-	else if (left->la_off < right->la_off)
-		return (-1);
-	else
-		return (0);
-}
+static TAILQ_HEAD(, loc_at) lalist = TAILQ_HEAD_INITIALIZER(lalist);
 
 static void
-search_loclist_at(struct readelf *re, Dwarf_Die die, Dwarf_Unsigned lowpc,
-    struct loc_at **la_list, size_t *la_list_len, size_t *la_list_cap)
+search_loclist_at(struct readelf *re, Dwarf_Die die, Dwarf_Unsigned lowpc)
 {
-	struct loc_at *la;
 	Dwarf_Attribute *attr_list;
 	Dwarf_Die ret_die;
 	Dwarf_Unsigned off;
@@ -6425,6 +6393,7 @@ search_loclist_at(struct readelf *re, Dwarf_Die die, Dwarf_Unsigned lowpc,
 	Dwarf_Half attr, form;
 	Dwarf_Bool is_info;
 	Dwarf_Error de;
+	struct loc_at *la, *nla;
 	int i, ret;
 
 	is_info = dwarf_get_die_infotypes_flag(die);
@@ -6472,21 +6441,33 @@ search_loclist_at(struct readelf *re, Dwarf_Die die, Dwarf_Unsigned lowpc,
 		} else
 			continue;
 
-		if (*la_list_cap == *la_list_len) {
-			*la_list = realloc(*la_list,
-			    *la_list_cap * 2 * sizeof(**la_list));
-			if (*la_list == NULL)
-				err(EXIT_FAILURE, "realloc failed");
-			*la_list_cap *= 2;
+		TAILQ_FOREACH(la, &lalist, la_next) {
+			if (off == la->la_off)
+				break;
+			if (off < la->la_off) {
+				if ((nla = malloc(sizeof(*nla))) == NULL)
+					err(EXIT_FAILURE, "malloc failed");
+				nla->la_at = attr_list[i];
+				nla->la_off = off;
+				nla->la_lowpc = lowpc;
+				nla->la_cu_psize = re->cu_psize;
+				nla->la_cu_osize = re->cu_osize;
+				nla->la_cu_ver = re->cu_ver;
+				TAILQ_INSERT_BEFORE(la, nla, la_next);
+				break;
+			}
 		}
-		la = &((*la_list)[*la_list_len]);
-		la->la_at = attr_list[i];
-		la->la_off = off;
-		la->la_lowpc = lowpc;
-		la->la_cu_psize = re->cu_psize;
-		la->la_cu_osize = re->cu_osize;
-		la->la_cu_ver = re->cu_ver;
-		(*la_list_len)++;
+		if (la == NULL) {
+			if ((nla = malloc(sizeof(*nla))) == NULL)
+				err(EXIT_FAILURE, "malloc failed");
+			nla->la_at = attr_list[i];
+			nla->la_off = off;
+			nla->la_lowpc = lowpc;
+			nla->la_cu_psize = re->cu_psize;
+			nla->la_cu_osize = re->cu_osize;
+			nla->la_cu_ver = re->cu_ver;
+			TAILQ_INSERT_TAIL(&lalist, nla, la_next);
+		}
 	}
 
 cont_search:
@@ -6495,16 +6476,14 @@ cont_search:
 	if (ret == DW_DLV_ERROR)
 		warnx("dwarf_child: %s", dwarf_errmsg(de));
 	else if (ret == DW_DLV_OK)
-		search_loclist_at(re, ret_die, lowpc, la_list,
-		    la_list_len, la_list_cap);
+		search_loclist_at(re, ret_die, lowpc);
 
 	/* Search sibling. */
 	ret = dwarf_siblingof_b(re->dbg, die, &ret_die, is_info, &de);
 	if (ret == DW_DLV_ERROR)
 		warnx("dwarf_siblingof: %s", dwarf_errmsg(de));
 	else if (ret == DW_DLV_OK)
-		search_loclist_at(re, ret_die, lowpc, la_list,
-		    la_list_len, la_list_cap);
+		search_loclist_at(re, ret_die, lowpc);
 }
 
 static void
@@ -6787,15 +6766,9 @@ dump_dwarf_loclist(struct readelf *re)
 	Dwarf_Signed lcnt;
 	Dwarf_Half tag, version, pointer_size, off_size;
 	Dwarf_Error de;
-	struct loc_at *la_list, *left, *right, *la;
-	size_t la_list_len, la_list_cap;
-	unsigned int duplicates, k;
+	struct loc_at *la;
 	int i, j, ret, has_content;
 
-	la_list_len = 0;
-	la_list_cap = 200;
-	if ((la_list = calloc(la_list_cap, sizeof(struct loc_at))) == NULL)
-		errx(EXIT_FAILURE, "calloc failed");
 	/* Search .debug_info section. */
 	while ((ret = dwarf_next_cu_header_b(re->dbg, NULL, &version, NULL,
 	    &pointer_size, &off_size, NULL, NULL, &de)) == DW_DLV_OK) {
@@ -6816,8 +6789,7 @@ dump_dwarf_loclist(struct readelf *re)
 		}
 
 		/* Search attributes for reference to .debug_loc section. */
-		search_loclist_at(re, die, lowpc, &la_list,
-		    &la_list_len, &la_list_cap);
+		search_loclist_at(re, die, lowpc);
 	}
 	if (ret == DW_DLV_ERROR)
 		warnx("dwarf_next_cu_header: %s", dwarf_errmsg(de));
@@ -6849,37 +6821,17 @@ dump_dwarf_loclist(struct readelf *re)
 			 * Search attributes for reference to .debug_loc
 			 * section.
 			 */
-			search_loclist_at(re, die, lowpc, &la_list,
-			    &la_list_len, &la_list_cap);
+			search_loclist_at(re, die, lowpc);
 		}
 		if (ret == DW_DLV_ERROR)
 			warnx("dwarf_next_cu_header: %s", dwarf_errmsg(de));
 	} while (dwarf_next_types_section(re->dbg, &de) == DW_DLV_OK);
 
-	if (la_list_len == 0) {
-		free(la_list);
+	if (TAILQ_EMPTY(&lalist))
 		return;
-	}
-
-	/* Sort la_list using loc_at_comparator. */
-	qsort(la_list, la_list_len, sizeof(struct loc_at), loc_at_comparator);
-
-	/* Get rid of the duplicates in la_list. */
-	duplicates = 0;
-	for (k = 1; k < la_list_len; ++k) {
-		left = &la_list[k - 1 - duplicates];
-		right = &la_list[k];
-
-		if (left->la_off == right->la_off)
-			duplicates++;
-		else
-			la_list[k - duplicates] = *right;
-	}
-	la_list_len -= duplicates;
 
 	has_content = 0;
-	for (k = 0; k < la_list_len; ++k) {
-		la = &la_list[k];
+	TAILQ_FOREACH(la, &lalist, la_next) {
 		if ((ret = dwarf_loclist_n(la->la_at, &llbuf, &lcnt, &de)) !=
 		    DW_DLV_OK) {
 			if (ret != DW_DLV_NO_ENTRY)
@@ -6929,8 +6881,6 @@ dump_dwarf_loclist(struct readelf *re)
 
 	if (!has_content)
 		printf("\nSection '.debug_loc' has no debugging data.\n");
-
-	free(la_list);
 }
 
 /*
@@ -7010,96 +6960,17 @@ get_symbol_value(struct readelf *re, int symtab, int i)
 	return (sym.st_value);
 }
 
-/*
- * Decompress a data section if needed (using ZLIB).
- * Returns true if sucessful, false otherwise.
- */
-static bool decompress_section(struct section *s,
-    unsigned char *compressed_data_buffer, size_t compressed_size,
-    unsigned char **ret_buf, size_t *ret_sz)
-{
-	GElf_Shdr sh;
-
-	if (gelf_getshdr(s->scn, &sh) == NULL)
-		errx(EXIT_FAILURE, "gelf_getshdr() failed: %s", elf_errmsg(-1));
-
-	if (sh.sh_flags & SHF_COMPRESSED) {
-		int ret;
-		GElf_Chdr chdr;
-		Elf64_Xword inflated_size;
-		unsigned char *uncompressed_data_buffer = NULL;
-		Elf64_Xword uncompressed_size;
-		z_stream strm;
-
-		if (gelf_getchdr(s->scn, &chdr) == NULL)
-			errx(EXIT_FAILURE, "gelf_getchdr() failed: %s", elf_errmsg(-1));
-		if (chdr.ch_type != ELFCOMPRESS_ZLIB) {
-			warnx("unknown compression type: %d", chdr.ch_type);
-			return (false);
-		}
-
-		inflated_size = 0;
-		uncompressed_size = chdr.ch_size;
-		uncompressed_data_buffer = malloc(uncompressed_size);
-		compressed_data_buffer += sizeof(chdr);
-		compressed_size -= sizeof(chdr);
-
-		strm.zalloc = Z_NULL;
-		strm.zfree = Z_NULL;
-		strm.opaque = Z_NULL;
-		strm.avail_in = compressed_size;
-		strm.avail_out = uncompressed_size;
-		ret = inflateInit(&strm);
-
-		if (ret != Z_OK)
-			goto fail;
-		/*
-		 * The section can contain several compressed buffers,
-		 * so decompress in a loop until all data is inflated.
-		 */
-		while (inflated_size < compressed_size) {
-			strm.next_in = compressed_data_buffer + inflated_size;
-			strm.next_out = uncompressed_data_buffer + inflated_size;
-			ret = inflate(&strm, Z_FINISH);
-			if (ret != Z_STREAM_END)
-				goto fail;
-			inflated_size = uncompressed_size - strm.avail_out;
-			ret = inflateReset(&strm);
-			if (ret != Z_OK)
-				goto fail;
-		}
-		if (strm.avail_out != 0)
-			warnx("Warning: wrong info in compression header.");
-		ret = inflateEnd(&strm);
-		if (ret != Z_OK)
-			goto fail;
-		*ret_buf = uncompressed_data_buffer;
-		*ret_sz = uncompressed_size;
-		return (true);
-fail:
-		inflateEnd(&strm);
-		if (strm.msg)
-			warnx("%s", strm.msg);
-		else
-			warnx("ZLIB error: %d", ret);
-		free(uncompressed_data_buffer);
-		return (false);
-	}
-	return (false);
-}
-
 static void
 hex_dump(struct readelf *re)
 {
 	struct section *s;
 	Elf_Data *d;
-	uint8_t *buf, *new_buf;
+	uint8_t *buf;
 	size_t sz, nbytes;
 	uint64_t addr;
 	int elferr, i, j;
 
 	for (i = 1; (size_t) i < re->shnum; i++) {
-		new_buf = NULL;
 		s = &re->sl[i];
 		if (find_dumpop(re, (size_t) i, s->name, HEX_DUMP, -1) == NULL)
 			continue;
@@ -7121,11 +6992,6 @@ hex_dump(struct readelf *re)
 		buf = d->d_buf;
 		sz = d->d_size;
 		addr = s->addr;
-		if (re->options & RE_Z) {
-			if (decompress_section(s, d->d_buf, d->d_size,
-			    &new_buf, &sz))
-				buf = new_buf;
-		}
 		printf("\nHex dump of section '%s':\n", s->name);
 		while (sz > 0) {
 			printf("  0x%8.8jx ", (uintmax_t)addr);
@@ -7149,7 +7015,6 @@ hex_dump(struct readelf *re)
 			addr += nbytes;
 			sz -= nbytes;
 		}
-		free(new_buf);
 	}
 }
 
@@ -7158,13 +7023,11 @@ str_dump(struct readelf *re)
 {
 	struct section *s;
 	Elf_Data *d;
-	unsigned char *start, *end, *buf_end, *new_buf;
+	unsigned char *start, *end, *buf_end;
 	unsigned int len;
-	size_t sz;
 	int i, j, elferr, found;
 
 	for (i = 1; (size_t) i < re->shnum; i++) {
-		new_buf = NULL;
 		s = &re->sl[i];
 		if (find_dumpop(re, (size_t) i, s->name, STR_DUMP, -1) == NULL)
 			continue;
@@ -7183,15 +7046,9 @@ str_dump(struct readelf *re)
 			    s->name);
 			continue;
 		}
+		buf_end = (unsigned char *) d->d_buf + d->d_size;
+		start = (unsigned char *) d->d_buf;
 		found = 0;
-		start = d->d_buf;
-		sz = d->d_size;
-		if (re->options & RE_Z) {
-			if (decompress_section(s, d->d_buf, d->d_size,
-			    &new_buf, &sz))
-				start = new_buf;
-		}
-		buf_end = start + sz;
 		printf("\nString dump of section '%s':\n", s->name);
 		for (;;) {
 			while (start < buf_end && !isprint(*start))
@@ -7212,7 +7069,6 @@ str_dump(struct readelf *re)
 				break;
 			start = end + 1;
 		}
-		free(new_buf);
 		if (!found)
 			printf("  No strings found in this section.");
 		putchar('\n');
@@ -7312,18 +7168,18 @@ unload_sections(struct readelf *re)
 	}
 }
 
-static bool
+static void
 dump_elf(struct readelf *re)
 {
 
 	/* Fetch ELF header. No need to continue if it fails. */
 	if (gelf_getehdr(re->elf, &re->ehdr) == NULL) {
 		warnx("gelf_getehdr failed: %s", elf_errmsg(-1));
-		return (false);
+		return;
 	}
 	if ((re->ec = gelf_getclass(re->elf)) == ELFCLASSNONE) {
 		warnx("gelf_getclass failed: %s", elf_errmsg(-1));
-		return (false);
+		return;
 	}
 	if (re->ehdr.e_ident[EI_DATA] == ELFDATA2MSB) {
 		re->dw_read = _read_msb;
@@ -7367,12 +7223,12 @@ dump_elf(struct readelf *re)
 		dump_dwarf(re);
 	if (re->options & ~RE_H)
 		unload_sections(re);
-	return (true);
 }
 
 static void
 dump_dwarf(struct readelf *re)
 {
+	struct loc_at *la, *_la;
 	Dwarf_Error de;
 	int error;
 
@@ -7410,10 +7266,15 @@ dump_dwarf(struct readelf *re)
 	if (re->dop & DW_O)
 		dump_dwarf_loclist(re);
 
+	TAILQ_FOREACH_SAFE(la, &lalist, la_next, _la) {
+		TAILQ_REMOVE(&lalist, la, la_next);
+		free(la);
+	}
+
 	dwarf_finish(re->dbg, &de);
 }
 
-static bool
+static void
 dump_ar(struct readelf *re, int fd)
 {
 	Elf_Arsym *arsym;
@@ -7458,20 +7319,19 @@ dump_ar(struct readelf *re, int fd)
 				}
 				printf("Binary %s(%s) contains:\n",
 				    re->filename, arhdr->ar_name);
-				elf_end(e);
 			}
 			printf("\t%s\n", arsym[i].as_name);
 		}
 		if (elf_rand(re->ar, SARMAG) != SARMAG) {
 			warnx("elf_rand() failed: %s", elf_errmsg(-1));
-			return (false);
+			return;
 		}
 	}
 
 process_members:
 
 	if ((re->options & ~RE_C) == 0)
-		return (true);
+		return;
 
 	cmd = ELF_C_READ;
 	while ((re->elf = elf_begin(fd, cmd, re->ar)) != NULL) {
@@ -7491,14 +7351,11 @@ process_members:
 		elf_end(re->elf);
 	}
 	re->elf = re->ar;
-	return (true);
 }
 
-static bool
+static void
 dump_object(struct readelf *re, int fd)
 {
-	bool rv = false;
-
 	if ((re->flags & DISPLAY_FILENAME) != 0)
 		printf("\nFile: %s\n", re->filename);
 
@@ -7512,10 +7369,10 @@ dump_object(struct readelf *re, int fd)
 		warnx("Not an ELF file.");
 		goto done;
 	case ELF_K_ELF:
-		rv = dump_elf(re);
+		dump_elf(re);
 		break;
 	case ELF_K_AR:
-		rv = dump_ar(re, fd);
+		dump_ar(re, fd);
 		break;
 	default:
 		warnx("Internal: libelf returned unknown elf kind.");
@@ -7523,7 +7380,6 @@ dump_object(struct readelf *re, int fd)
 
 done:
 	elf_end(re->elf);
-	return (rv);
 }
 
 static void
@@ -7782,7 +7638,7 @@ _decode_sleb128(uint8_t **dp, uint8_t *dpe)
 	} while ((b & 0x80) != 0);
 
 	if (shift < 32 && (b & 0x40) != 0)
-		ret |= (-1 << shift);
+		ret |= (~0UL << shift);
 
 	*dp = src;
 
@@ -7843,7 +7699,6 @@ Usage: %s [options] file...\n\
                            Display DWARF information.\n\
   -x INDEX | --hex-dump=INDEX\n\
                            Display contents of a section as hexadecimal.\n\
-  -z | --decompress        Decompress the contents of a section before displaying it.\n\
   -A | --arch-specific     (accepted, but ignored)\n\
   -D | --use-dynamic       Print the symbol table specified by the DT_SYMTAB\n\
                            entry in the \".dynamic\" section.\n\
@@ -7858,38 +7713,36 @@ Usage: %s [options] file...\n\
 
 
 static void
-readelf_usage(int status)
+readelf_usage(int exit_code)
 {
 	fprintf(stderr, USAGE_MESSAGE, ELFTC_GETPROGNAME());
-	exit(status);
+	exit(exit_code);
 }
 
 int
 main(int argc, char **argv)
 {
-	cap_rights_t	rights;
-	fileargs_t	*fa;
 	struct readelf	*re, re_storage;
 	unsigned long	 si;
-	int		 fd, opt, i, exit_code;
+	int		 fd, opt, i;
 	char		*ep;
 
 	re = &re_storage;
 	memset(re, 0, sizeof(*re));
 	STAILQ_INIT(&re->v_dumpop);
 
-	while ((opt = getopt_long(argc, argv, "AacDdegHhIi:lNnp:rSstuVvWw::x:z",
+	while ((opt = getopt_long(argc, argv, "AacDdegHhIi:lNnp:rSstuVvWw::x:",
 	    longopts, NULL)) != -1) {
 		switch(opt) {
 		case '?':
-			readelf_usage(EXIT_SUCCESS);
+			readelf_usage(EX_OK);
 			break;
 		case 'A':
 			re->options |= RE_AA;
 			break;
 		case 'a':
 			re->options |= RE_AA | RE_D | RE_G | RE_H | RE_II |
-			    RE_L | RE_N | RE_R | RE_SS | RE_S | RE_U | RE_VV;
+			    RE_L | RE_R | RE_SS | RE_S | RE_VV;
 			break;
 		case 'c':
 			re->options |= RE_C;
@@ -7907,7 +7760,7 @@ main(int argc, char **argv)
 			re->options |= RE_G;
 			break;
 		case 'H':
-			readelf_usage(EXIT_SUCCESS);
+			readelf_usage(EX_OK);
 			break;
 		case 'h':
 			re->options |= RE_H;
@@ -7975,9 +7828,6 @@ main(int argc, char **argv)
 				add_dumpop(re, 0, optarg, HEX_DUMP,
 				    DUMP_BY_NAME);
 			break;
-		case 'z':
-			re->options |= RE_Z;
-			break;
 		case OPTION_DEBUG_DUMP:
 			re->options |= RE_W;
 			parse_dwarf_op_long(re, optarg);
@@ -7988,7 +7838,7 @@ main(int argc, char **argv)
 	argc -= optind;
 
 	if (argc == 0 || re->options == 0)
-		readelf_usage(EXIT_FAILURE);
+		readelf_usage(EX_USAGE);
 
 	if (argc > 1)
 		re->flags |= DISPLAY_FILENAME;
@@ -7997,34 +7847,16 @@ main(int argc, char **argv)
 		errx(EXIT_FAILURE, "ELF library initialization failed: %s",
 		    elf_errmsg(-1));
 
-	cap_rights_init(&rights, CAP_FCNTL, CAP_FSTAT, CAP_MMAP_R, CAP_SEEK);
-	fa = fileargs_init(argc, argv, O_RDONLY, 0, &rights, FA_OPEN);
-	if (fa == NULL)
-		err(1, "Unable to initialize casper fileargs");
-
-	caph_cache_catpages();
-	if (caph_limit_stdio() < 0) {
-		fileargs_free(fa);
-		err(1, "Unable to limit stdio rights");
-	}
-	if (caph_enter_casper() < 0) {
-		fileargs_free(fa);
-		err(1, "Unable to enter capability mode");
-	}
-
-	exit_code = EXIT_SUCCESS;
 	for (i = 0; i < argc; i++) {
 		re->filename = argv[i];
-		fd = fileargs_open(fa, re->filename);
+		fd = open(re->filename, O_RDONLY);
 		if (fd < 0) {
 			warn("open %s failed", re->filename);
-			exit_code = EXIT_FAILURE;
 		} else {
-			if (!dump_object(re, fd))
-				exit_code = EXIT_FAILURE;
+			dump_object(re, fd);
 			close(fd);
 		}
 	}
 
-	exit(exit_code);
+	exit(EXIT_SUCCESS);
 }
